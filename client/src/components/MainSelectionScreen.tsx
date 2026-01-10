@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNosePointer } from '@/hooks/useNosePointer';
 import { usePointerFSM } from '@/hooks/usePointerFSM';
 import CameraOverlay from './CameraOverlay';
@@ -16,6 +16,29 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
   const [confirmedAction, setConfirmedAction] = useState<string | null>(null);
   const [showInitInfo, setShowInitInfo] = useState(true);
   const [initStartTime] = useState(Date.now());
+
+  // ボタンのrefを保存
+  const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({
+    'btn-want': null,
+    'btn-help': null,
+    'btn-chat': null,
+  });
+
+  // ボタン境界の登録（マウント時）
+  useEffect(() => {
+    Object.entries(buttonRefs.current).forEach(([id, el]) => {
+      if (el) {
+        const rect = el.getBoundingClientRect();
+        registerButton(id, {
+          x: rect.left,
+          y: rect.top,
+          width: rect.width,
+          height: rect.height,
+          id,
+        });
+      }
+    });
+  }, [registerButton]);
 
   // ポインタ位置の更新
   useEffect(() => {
@@ -179,17 +202,9 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         <button
           ref={(el) => {
             if (el) {
-              const rect = el.getBoundingClientRect();
-              registerButton('btn-want', {
-                x: rect.left,
-                y: rect.top,
-                width: rect.width,
-                height: rect.height,
-                id: 'btn-want',
-              });
+              buttonRefs.current['btn-want'] = el;
             }
           }}
-          onMouseEnter={() => {}}
           style={{
             padding: '24px 32px',
             fontSize: '24px',
@@ -217,17 +232,9 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         <button
           ref={(el) => {
             if (el) {
-              const rect = el.getBoundingClientRect();
-              registerButton('btn-help', {
-                x: rect.left,
-                y: rect.top,
-                width: rect.width,
-                height: rect.height,
-                id: 'btn-help',
-              });
+              buttonRefs.current['btn-help'] = el;
             }
           }}
-          onMouseEnter={() => {}}
           style={{
             padding: '24px 32px',
             fontSize: '24px',
@@ -255,17 +262,9 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         <button
           ref={(el) => {
             if (el) {
-              const rect = el.getBoundingClientRect();
-              registerButton('btn-chat', {
-                x: rect.left,
-                y: rect.top,
-                width: rect.width,
-                height: rect.height,
-                id: 'btn-chat',
-              });
+              buttonRefs.current['btn-chat'] = el;
             }
           }}
-          onMouseEnter={() => {}}
           style={{
             padding: '24px 32px',
             fontSize: '24px',
