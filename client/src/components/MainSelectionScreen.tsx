@@ -27,7 +27,7 @@ interface MainSelectionScreenProps {
  * - 画面下部侵入：キャンセル
  */
 export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSelect }) => {
-  const { videoRef, pointerPosition, gestureState, isInitialized, error, resetGesture } = useNosePointer();
+  const { videoRef, pointerPosition, gestureState, isInitialized, error, resetGesture, debugInfo } = useNosePointer();
   const { fsmContext, registerButton, unregisterButton, updatePointerPosition, handleGesture, resetConfirm, resetCancel } = usePointerFSM();
 
   const [confirmedAction, setConfirmedAction] = useState<string | null>(null);
@@ -83,12 +83,20 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
   if (error) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <h2 style={{ color: '#dc2626', fontSize: '24px', marginBottom: '16px' }}>エラーが発生しました</h2>
-        <p style={{ color: '#666', marginBottom: '12px', maxWidth: '400px' }}>{error}</p>
+        <h2 style={{ color: '#dc2626', fontSize: '24px', marginBottom: '16px' }}>⚠️ エラーが発生しました</h2>
+        <p style={{ color: '#666', marginBottom: '12px', maxWidth: '400px', whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>{error}</p>
         <p style={{ color: '#666', fontSize: '14px', maxWidth: '400px' }}>
           ブラウザの設定でカメラへのアクセスを許可してください。<br />
           ページをリロードして再度試してください。
         </p>
+        <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '8px', maxWidth: '400px', textAlign: 'left', fontSize: '12px', color: '#333' }}>
+          <strong>デバッグ情報:</strong>
+          <div style={{ marginTop: '8px', fontFamily: 'monospace' }}>
+            {Object.entries(debugInfo).map(([key, value]) => (
+              <div key={key}>{key}: {String(value)}</div>
+            ))}
+          </div>
+        </div>
       </div>
     );
   }
@@ -96,10 +104,18 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
   if (!isInitialized) {
     return (
       <div style={{ padding: '40px', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center' }}>
-        <h2 style={{ fontSize: '24px', marginBottom: '16px' }}>初期化中...</h2>
+        <h2 style={{ fontSize: '24px', marginBottom: '16px' }}>⏳ 初期化中...</h2>
         <p style={{ color: '#666' }}>MediaPipeを読み込んでいます</p>
         <div style={{ marginTop: '20px', fontSize: '12px', color: '#999' }}>
           初回起動時は数秒かかる場合があります
+        </div>
+        <div style={{ marginTop: '20px', padding: '15px', backgroundColor: '#f0f0f0', borderRadius: '8px', maxWidth: '400px', textAlign: 'left', fontSize: '12px', color: '#333' }}>
+          <strong>初期化状況:</strong>
+          <div style={{ marginTop: '8px', fontFamily: 'monospace' }}>
+            {Object.entries(debugInfo).map(([key, value]) => (
+              <div key={key}>{key}: {String(value)}</div>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -223,6 +239,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
       >
         ↑ ここでキャンセル
       </div>
+
       {/* 仮想ポインタは非表示（CameraOverlayで表示） */}
 
       {/* デバッグ情報 */}
@@ -248,6 +265,11 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
           <div>Pos: ({Math.round(pointerPosition.x)}, {Math.round(pointerPosition.y)})</div>
           <div>Conf: {(pointerPosition.confidence * 100).toFixed(0)}%</div>
           <div>Tracking: {pointerPosition.isTracking ? 'Yes' : 'No'}</div>
+          <div style={{ marginTop: '8px', paddingTop: '8px', borderTop: '1px solid rgba(255,255,255,0.3)', fontSize: '10px' }}>
+            {Object.entries(debugInfo).map(([key, value]) => (
+              <div key={key}>{key}: {String(value).substring(0, 25)}</div>
+            ))}
+          </div>
         </div>
       )}
     </div>

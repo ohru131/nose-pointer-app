@@ -37,6 +37,7 @@ export function useNosePointer() {
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
 
   // 前フレームの鼻位置を追跡（ジェスチャ検出用）
   const prevNosePosRef = useRef<{ x: number; y: number } | null>(null);
@@ -46,15 +47,20 @@ export function useNosePointer() {
   // MediaPipeの初期化
   const initializeFaceLandmarker = useCallback(async () => {
     try {
-      console.log('Initializing MediaPipe FaceLandmarker...');
-      
+      console.log('🔧 Initializing MediaPipe FaceLandmarker...');
+      setDebugInfo((prev) => ({ ...prev, status: 'Initializing MediaPipe...' }));
+
       // 公式CDNパスを使用
       const wasmPath = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
-      
-      console.log(`Loading WASM from: ${wasmPath}`);
-      const filesetResolver = await FilesetResolver.forVisionTasks(wasmPath);
 
-      console.log('Creating FaceLandmarker...');
+      console.log(`📦 Loading WASM from: ${wasmPath}`);
+      setDebugInfo((prev) => ({ ...prev, wasmPath }));
+
+      const filesetResolver = await FilesetResolver.forVisionTasks(wasmPath);
+      console.log('✅ FilesetResolver created');
+      setDebugInfo((prev) => ({ ...prev, filesetResolver: 'Created' }));
+
+      console.log('🤖 Creating FaceLandmarker...');
       const landmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
         baseOptions: {
           modelAssetPath:
@@ -65,12 +71,14 @@ export function useNosePointer() {
       });
 
       faceLandmarkerRef.current = landmarker;
-      console.log('MediaPipe FaceLandmarker initialized successfully');
+      console.log('✅ MediaPipe FaceLandmarker initialized successfully');
+      setDebugInfo((prev) => ({ ...prev, status: 'MediaPipe Ready' }));
       setIsInitialized(true);
       setError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to initialize MediaPipe';
-      console.error('MediaPipe initialization error:', err);
+      console.error('❌ MediaPipe initialization error:', err);
+      setDebugInfo((prev) => ({ ...prev, error: message }));
       setError(`MediaPipeの初期化に失敗しました: ${message}`);
     }
   }, []);
@@ -78,21 +86,76 @@ export function useNosePointer() {
   // ビデオストリームの開始
   const startVideoStream = useCallback(async () => {
     try {
-      console.log('Requesting camera access...');
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode: 'user' },
-      });
+      console.log('📹 Requesting camera access...');
+      setDebugInfo((prev) => ({ ...prev, camera: 'Requesting...' }));
+
+      // スマートフォン対応：複数のカメラ設定を試す
+      const constraints = [
+        // 第1優先：フロントカメラ（スマートフォン）
+        { video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } } },
+        // 第2優先：フロントカメラ（必須）
+        { video: { facingMode: 'user' } },
+        // 第3優先：デフォルトカメラ
+        { video: true },
+      ];
+
+      let stream: MediaStream | null = null;
+      let lastError: Error | null = null;
+
+      for (const constraint of constraints) {
+        try {
+          console.log('🎥 Trying constraint:', constraint);
+          stream = await navigator.mediaDevices.getUserMedia(constraint);
+          console.log('✅ Camera access granted with constraint:', constraint);
+          setDebugInfo((prev) => ({ ...prev, camera: 'Connected' }));
+          break;
+        } catch (err) {
+          lastError = err as Error;
+          console.warn('⚠️ Constraint failed, trying next...', err);
+        }
+      }
+
+      if (!stream) {
+        throw lastError || new Error('No camera constraints worked');
+      }
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+
+        // ビデオ再生の準備完了を待つ
+        const playPromise = videoRef.current.play();
+        if (playPromise !== undefined) {
+          playPromise
+            .then(() => {
+              console.log('✅ Video playback started');
+              setDebugInfo((prev) => ({ ...prev, camera: 'Playing' }));
+            })
+            .catch((err) => {
+              console.error('❌ Video playback error:', err);
+              setDebugInfo((prev) => ({ ...prev, camera: `Error: ${err.message}` }));
+            });
+        }
+
+        // メタデータ読み込み時のハンドラ
         videoRef.current.onloadedmetadata = () => {
-          console.log('Video metadata loaded, starting playback');
-          videoRef.current?.play();
+          console.log('✅ Video metadata loaded');
+          console.log(`📐 Video dimensions: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`);
+          setDebugInfo((prev) => ({
+            ...prev,
+            videoDimensions: `${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`,
+          }));
+        };
+
+        // エラーハンドラ
+        videoRef.current.onerror = (err) => {
+          console.error('❌ Video error:', err);
+          setDebugInfo((prev) => ({ ...prev, camera: 'Video Error' }));
         };
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to access camera';
-      console.error('Camera access error:', err);
+      console.error('❌ Camera access error:', err);
+      setDebugInfo((prev) => ({ ...prev, camera: `Error: ${message}` }));
       setError(`カメラアクセスエラー: ${message}`);
     }
   }, []);
@@ -138,16 +201,25 @@ export function useNosePointer() {
 
   // フレーム処理（鼻トラッキング）
   const processFrame = useCallback(() => {
-    if (
-      !videoRef.current ||
-      !faceLandmarkerRef.current ||
-      videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA
-    ) {
+    if (!videoRef.current || !faceLandmarkerRef.current) {
+      animationFrameRef.current = requestAnimationFrame(processFrame);
+      return;
+    }
+
+    // ビデオの準備状態を確認
+    const readyState = videoRef.current.readyState;
+    if (readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
+      setDebugInfo((prev) => ({
+        ...prev,
+        videoReady: `${readyState}/4 (waiting for HAVE_ENOUGH_DATA)`,
+      }));
       animationFrameRef.current = requestAnimationFrame(processFrame);
       return;
     }
 
     try {
+      setDebugInfo((prev) => ({ ...prev, videoReady: 'Ready' }));
+
       const results = faceLandmarkerRef.current.detectForVideo(videoRef.current, Date.now());
 
       if (results.faceLandmarks.length > 0) {
@@ -170,14 +242,25 @@ export function useNosePointer() {
             isTracking: true,
           });
 
+          setDebugInfo((prev) => ({
+            ...prev,
+            tracking: 'Face Detected',
+            confidence: `${(confidence * 100).toFixed(0)}%`,
+          }));
+
           // ジェスチャ検出
           detectGesture({ x: screenX, y: screenY }, screenHeight);
         }
       } else {
         setPointerPosition((prev) => ({ ...prev, isTracking: false }));
+        setDebugInfo((prev) => ({ ...prev, tracking: 'No Face' }));
       }
     } catch (err) {
-      console.error('Frame processing error:', err);
+      console.error('❌ Frame processing error:', err);
+      setDebugInfo((prev) => ({
+        ...prev,
+        error: err instanceof Error ? err.message : 'Unknown error',
+      }));
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
@@ -185,10 +268,12 @@ export function useNosePointer() {
 
   // 初期化と開始
   useEffect(() => {
+    console.log('🚀 useNosePointer mounted');
     initializeFaceLandmarker();
     startVideoStream();
 
     return () => {
+      console.log('🛑 useNosePointer unmounted');
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -202,6 +287,7 @@ export function useNosePointer() {
   // フレーム処理の開始
   useEffect(() => {
     if (isInitialized) {
+      console.log('▶️ Starting frame processing');
       animationFrameRef.current = requestAnimationFrame(processFrame);
     }
 
@@ -232,5 +318,6 @@ export function useNosePointer() {
     isInitialized,
     error,
     resetGesture,
+    debugInfo,
   };
 }
