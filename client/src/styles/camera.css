@@ -1,0 +1,13 @@
+/* MediaPipeカメラフィード用スタイル */
+
+video[style*="position: fixed"] {
+  display: none !important;
+}
+
+video {
+  display: none !important;
+}
+
+canvas {
+  display: none !important;
+}
