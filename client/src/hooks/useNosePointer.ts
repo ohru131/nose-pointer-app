@@ -236,8 +236,8 @@ export function useNosePointer() {
           const screenWidth = window.innerWidth;
           const screenHeight = window.innerHeight;
 
-          // ビデオ座標をスクリーン座標に変換
-          const screenX = noseLandmark.x * screenWidth;
+          // ビデオ座標をスクリーン座標に変換（カメラ映像が左右反転しているので、X座標も反転）
+          const screenX = (1 - noseLandmark.x) * screenWidth; // 左右反転
           const screenY = noseLandmark.y * screenHeight;
           const confidence = noseLandmark.z || 0.5;
 
@@ -254,7 +254,7 @@ export function useNosePointer() {
             confidence: `${(confidence * 100).toFixed(0)}%`,
           }));
 
-          // ジェスチャ検出
+          // ジェスチャ検出（左右反転後の座標を使用）
           detectGesture({ x: screenX, y: screenY }, screenHeight);
         }
       } else {
