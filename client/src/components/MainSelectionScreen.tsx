@@ -3,6 +3,7 @@ import { useNosePointer } from '@/hooks/useNosePointer';
 import { usePointerFSM, ButtonBounds } from '@/hooks/usePointerFSM';
 import { VirtualPointer } from './VirtualPointer';
 import { PointerButton } from './PointerButton';
+import CameraOverlay from './CameraOverlay';
 
 interface MainSelectionScreenProps {
   onSelect?: (category: 'want' | 'help' | 'chat') => void;
@@ -26,7 +27,7 @@ interface MainSelectionScreenProps {
  * - 画面下部侵入：キャンセル
  */
 export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSelect }) => {
-  const { pointerPosition, gestureState, isInitialized, error, resetGesture } = useNosePointer();
+  const { videoRef, pointerPosition, gestureState, isInitialized, error, resetGesture } = useNosePointer();
   const { fsmContext, registerButton, unregisterButton, updatePointerPosition, handleGesture, resetConfirm, resetCancel } = usePointerFSM();
 
   const [confirmedAction, setConfirmedAction] = useState<string | null>(null);
@@ -117,6 +118,12 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         position: 'relative',
       }}
     >
+      {/* カメラオーバーレイ */}
+      <CameraOverlay
+        videoRef={videoRef}
+        pointerPosition={pointerPosition}
+        isInitialized={isInitialized}
+      />
       {/* タイトル */}
       <h1
         style={{
@@ -216,9 +223,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
       >
         ↑ ここでキャンセル
       </div>
-
-      {/* 仮想ポインタ */}
-      <VirtualPointer position={pointerPosition} />
+      {/* 仮想ポインタは非表示（CameraOverlayで表示） */}
 
       {/* デバッグ情報 */}
       {process.env.NODE_ENV === 'development' && (
@@ -242,6 +247,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
           <div>Gesture: {gestureState.direction}</div>
           <div>Pos: ({Math.round(pointerPosition.x)}, {Math.round(pointerPosition.y)})</div>
           <div>Conf: {(pointerPosition.confidence * 100).toFixed(0)}%</div>
+          <div>Tracking: {pointerPosition.isTracking ? 'Yes' : 'No'}</div>
         </div>
       )}
     </div>
