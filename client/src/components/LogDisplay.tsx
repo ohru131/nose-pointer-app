@@ -9,8 +9,11 @@ interface LogEntry {
 export function useLogCapture() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const logsRef = useRef<LogEntry[]>([]);
+  const isMountedRef = useRef(true);
 
   useEffect(() => {
+    isMountedRef.current = true;
+
     // console.log をオーバーライド
     const originalLog = console.log;
     const originalWarn = console.warn;
@@ -32,7 +35,9 @@ export function useLogCapture() {
       if (logsRef.current.length > 50) {
         logsRef.current.shift();
       }
-      setLogs([...logsRef.current]);
+      if (isMountedRef.current) {
+        setLogs([...logsRef.current]);
+      }
       originalLog(...args);
     };
 
@@ -51,7 +56,9 @@ export function useLogCapture() {
       if (logsRef.current.length > 50) {
         logsRef.current.shift();
       }
-      setLogs([...logsRef.current]);
+      if (isMountedRef.current) {
+        setLogs([...logsRef.current]);
+      }
       originalWarn(...args);
     };
 
@@ -70,7 +77,9 @@ export function useLogCapture() {
       if (logsRef.current.length > 50) {
         logsRef.current.shift();
       }
-      setLogs([...logsRef.current]);
+      if (isMountedRef.current) {
+        setLogs([...logsRef.current]);
+      }
       originalError(...args);
     };
 
@@ -89,11 +98,14 @@ export function useLogCapture() {
       if (logsRef.current.length > 50) {
         logsRef.current.shift();
       }
-      setLogs([...logsRef.current]);
+      if (isMountedRef.current) {
+        setLogs([...logsRef.current]);
+      }
       originalInfo(...args);
     };
 
     return () => {
+      isMountedRef.current = false;
       console.log = originalLog;
       console.warn = originalWarn;
       console.error = originalError;

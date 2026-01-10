@@ -24,10 +24,15 @@ export default function CameraOverlay({
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
+  const isMountedRef = useRef(true);
 
   // キャンバスに映像を描画
   useEffect(() => {
+    isMountedRef.current = true;
+
     const drawFrame = () => {
+      if (!isMountedRef.current) return;
+
       if (
         !canvasRef.current ||
         !videoRef.current ||
@@ -87,6 +92,7 @@ export default function CameraOverlay({
     }
 
     return () => {
+      isMountedRef.current = false;
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
@@ -144,15 +150,11 @@ export default function CameraOverlay({
         >
           {/* クロップ領域内のカメラ映像を表示 */}
           <video
-            ref={(el) => {
-              if (!el || !videoRef.current) return;
-              
-              // ビデオ要素を鏡のように表示
-              el.srcObject = videoRef.current.srcObject;
-              el.style.width = '100%';
-              el.style.height = '100%';
-              el.style.objectFit = 'cover';
-              el.style.transform = 'scaleX(-1)'; // 左右反転
+            style={{
+              width: '100%',
+              height: '100%',
+              objectFit: 'cover',
+              transform: 'scaleX(-1)',
             }}
             autoPlay
             playsInline
