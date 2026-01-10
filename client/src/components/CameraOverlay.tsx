@@ -22,7 +22,6 @@ export default function CameraOverlay({
   isInitialized,
 }: CameraOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
   const animationFrameRef = useRef<number | null>(null);
   const isMountedRef = useRef(true);
 
@@ -33,58 +32,65 @@ export default function CameraOverlay({
     const drawFrame = () => {
       if (!isMountedRef.current) return;
 
-      if (
-        !canvasRef.current ||
-        !videoRef.current ||
-        videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA
-      ) {
+      try {
+        if (
+          !canvasRef.current ||
+          !videoRef.current ||
+          videoRef.current.readyState !== videoRef.current.HAVE_ENOUGH_DATA
+        ) {
+          animationFrameRef.current = requestAnimationFrame(drawFrame);
+          return;
+        }
+
+        const canvas = canvasRef.current;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) {
+          animationFrameRef.current = requestAnimationFrame(drawFrame);
+          return;
+        }
+
+        const video = videoRef.current;
+
+        // キャンバスサイズをウィンドウサイズに合わせる
+        if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
+          canvas.width = window.innerWidth;
+          canvas.height = window.innerHeight;
+        }
+
+        // 背景をクリア（半透明）
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        // ビデオを左右反転して描画（鏡のように）
+        ctx.save();
+        ctx.scale(-1, 1);
+        ctx.translate(-canvas.width, 0);
+
+        // ビデオの縦横比を保ったまま、キャンバス全体に拡大
+        const videoAspect = video.videoWidth / video.videoHeight;
+        const canvasAspect = canvas.width / canvas.height;
+
+        let drawWidth = canvas.width;
+        let drawHeight = canvas.height;
+
+        if (videoAspect > canvasAspect) {
+          drawHeight = canvas.width / videoAspect;
+        } else {
+          drawWidth = canvas.height * videoAspect;
+        }
+
+        const x = (canvas.width - drawWidth) / 2;
+        const y = (canvas.height - drawHeight) / 2;
+
+        ctx.drawImage(video, x, y, drawWidth, drawHeight);
+        ctx.restore();
+      } catch (error) {
+        console.error('Canvas drawing error:', error);
+      }
+
+      if (isMountedRef.current) {
         animationFrameRef.current = requestAnimationFrame(drawFrame);
-        return;
       }
-
-      const canvas = canvasRef.current;
-      const ctx = canvas.getContext('2d');
-      if (!ctx) return;
-
-      const video = videoRef.current;
-
-      // キャンバスサイズをウィンドウサイズに合わせる
-      if (canvas.width !== window.innerWidth || canvas.height !== window.innerHeight) {
-        canvas.width = window.innerWidth;
-        canvas.height = window.innerHeight;
-      }
-
-      // 背景をクリア（半透明）
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-      // ビデオを左右反転して描画（鏡のように）
-      ctx.save();
-      ctx.scale(-1, 1); // 水平反転
-      ctx.translate(-canvas.width, 0);
-
-      // ビデオの縦横比を保ったまま、キャンバス全体に拡大
-      const videoAspect = video.videoWidth / video.videoHeight;
-      const canvasAspect = canvas.width / canvas.height;
-
-      let drawWidth = canvas.width;
-      let drawHeight = canvas.height;
-
-      if (videoAspect > canvasAspect) {
-        // ビデオが横長の場合
-        drawHeight = canvas.width / videoAspect;
-      } else {
-        // ビデオが縦長の場合
-        drawWidth = canvas.height * videoAspect;
-      }
-
-      const x = (canvas.width - drawWidth) / 2;
-      const y = (canvas.height - drawHeight) / 2;
-
-      ctx.drawImage(video, x, y, drawWidth, drawHeight);
-      ctx.restore();
-
-      animationFrameRef.current = requestAnimationFrame(drawFrame);
     };
 
     if (isInitialized && videoRef.current) {
@@ -93,8 +99,9 @@ export default function CameraOverlay({
 
     return () => {
       isMountedRef.current = false;
-      if (animationFrameRef.current) {
+      if (animationFrameRef.current !== null) {
         cancelAnimationFrame(animationFrameRef.current);
+        animationFrameRef.current = null;
       }
     };
   }, [isInitialized, videoRef]);
@@ -104,11 +111,9 @@ export default function CameraOverlay({
     const screenWidth = window.innerWidth;
     const screenHeight = window.innerHeight;
 
-    // 鼻を中心にした領域（画面の30%×40%）
     const cropWidth = screenWidth * 0.3;
     const cropHeight = screenHeight * 0.4;
 
-    // 鼻の位置を中心にクロップ領域を設定
     const cropX = Math.max(0, Math.min(pointerPosition.x - cropWidth / 2, screenWidth - cropWidth));
     const cropY = Math.max(0, Math.min(pointerPosition.y - cropHeight / 2, screenHeight - cropHeight));
 
@@ -119,15 +124,16 @@ export default function CameraOverlay({
 
   return (
     <div
-      ref={containerRef}
-      className="fixed inset-0 pointer-events-none"
-      style={{ zIndex: 10 }}
+      style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 10 }}
     >
       {/* フルスクリーンカメラオーバーレイ */}
       <canvas
         ref={canvasRef}
-        className="fixed inset-0 w-full h-full"
         style={{
+          position: 'fixed',
+          inset: 0,
+          width: '100%',
+          height: '100%',
           opacity: 0.2,
           mixBlendMode: 'screen',
         }}
@@ -136,31 +142,19 @@ export default function CameraOverlay({
       {/* 鼻周辺のクロップ表示 */}
       {isInitialized && pointerPosition.isTracking && videoRef.current && (
         <div
-          className="fixed border-2 border-blue-400"
           style={{
+            position: 'fixed',
             left: `${cropRegion.x}px`,
             top: `${cropRegion.y}px`,
             width: `${cropRegion.width}px`,
             height: `${cropRegion.height}px`,
+            border: '2px solid rgb(59, 130, 246)',
             opacity: 0.4,
             backgroundColor: 'rgba(59, 130, 246, 0.08)',
             borderRadius: '8px',
             overflow: 'hidden',
           }}
-        >
-          {/* クロップ領域内のカメラ映像を表示 */}
-          <video
-            style={{
-              width: '100%',
-              height: '100%',
-              objectFit: 'cover',
-              transform: 'scaleX(-1)',
-            }}
-            autoPlay
-            playsInline
-            muted
-          />
-        </div>
+        />
       )}
 
       {/* 鼻ポインタ表示 */}
@@ -168,18 +162,20 @@ export default function CameraOverlay({
         <>
           {/* 外側の円（信頼度に応じた色） */}
           <div
-            className="fixed rounded-full border-2 transition-all"
             style={{
+              position: 'fixed',
               left: `${pointerPosition.x - 20}px`,
               top: `${pointerPosition.y - 20}px`,
               width: '40px',
               height: '40px',
-              borderColor:
+              borderRadius: '50%',
+              border: `2px solid ${
                 pointerPosition.confidence > 0.8
-                  ? '#22c55e' // 緑：高精度
+                  ? '#22c55e'
                   : pointerPosition.confidence > 0.6
-                    ? '#3b82f6' // 青：中程度
-                    : '#ef4444', // 赤：低精度
+                    ? '#3b82f6'
+                    : '#ef4444'
+              }`,
               backgroundColor:
                 pointerPosition.confidence > 0.8
                   ? 'rgba(34, 197, 94, 0.15)'
@@ -193,17 +189,19 @@ export default function CameraOverlay({
                     ? '0 0 15px rgba(59, 130, 246, 0.6)'
                     : '0 0 15px rgba(239, 68, 68, 0.6)',
               zIndex: 20,
+              transition: 'all 0.1s ease-out',
             }}
           />
 
           {/* 内側のドット（鼻の正確な位置） */}
           <div
-            className="fixed rounded-full"
             style={{
+              position: 'fixed',
               left: `${pointerPosition.x - 8}px`,
               top: `${pointerPosition.y - 8}px`,
               width: '16px',
               height: '16px',
+              borderRadius: '50%',
               backgroundColor:
                 pointerPosition.confidence > 0.8
                   ? '#22c55e'
@@ -217,8 +215,8 @@ export default function CameraOverlay({
 
           {/* 十字カーソル */}
           <div
-            className="fixed"
             style={{
+              position: 'fixed',
               left: `${pointerPosition.x}px`,
               top: `${pointerPosition.y - 15}px`,
               width: '1px',
@@ -233,8 +231,8 @@ export default function CameraOverlay({
             }}
           />
           <div
-            className="fixed"
             style={{
+              position: 'fixed',
               left: `${pointerPosition.x - 15}px`,
               top: `${pointerPosition.y}px`,
               width: '30px',
@@ -251,10 +249,16 @@ export default function CameraOverlay({
 
           {/* 信頼度インジケーター */}
           <div
-            className="fixed text-xs font-bold text-white px-2 py-1 rounded bg-black/60"
             style={{
+              position: 'fixed',
               left: `${pointerPosition.x + 30}px`,
               top: `${pointerPosition.y - 12}px`,
+              fontSize: '12px',
+              fontWeight: 'bold',
+              color: 'white',
+              padding: '4px 8px',
+              borderRadius: '4px',
+              backgroundColor: 'rgba(0, 0, 0, 0.6)',
               zIndex: 20,
               whiteSpace: 'nowrap',
             }}
@@ -266,13 +270,41 @@ export default function CameraOverlay({
 
       {/* トラッキング状態インジケーター */}
       {isInitialized && !pointerPosition.isTracking && (
-        <div className="fixed top-4 left-4 text-sm font-semibold text-red-600 bg-white/90 px-3 py-2 rounded shadow-md">
+        <div
+          style={{
+            position: 'fixed',
+            top: '16px',
+            left: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#dc2626',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            zIndex: 9998,
+          }}
+        >
           🔴 鼻が検出されていません
         </div>
       )}
 
       {isInitialized && pointerPosition.isTracking && (
-        <div className="fixed top-4 left-4 text-sm font-semibold text-green-600 bg-white/90 px-3 py-2 rounded shadow-md">
+        <div
+          style={{
+            position: 'fixed',
+            top: '16px',
+            left: '16px',
+            fontSize: '14px',
+            fontWeight: '600',
+            color: '#16a34a',
+            backgroundColor: 'rgba(255, 255, 255, 0.9)',
+            padding: '8px 12px',
+            borderRadius: '6px',
+            boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+            zIndex: 9998,
+          }}
+        >
           🟢 トラッキング中
         </div>
       )}
