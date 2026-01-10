@@ -200,11 +200,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
       >
         {/* ほしい ボタン */}
         <button
-          ref={(el) => {
-            if (el) {
-              buttonRefs.current['btn-want'] = el;
-            }
-          }}
+          ref={(el) => { buttonRefs.current['btn-want'] = el; }}
           style={{
             padding: '24px 32px',
             fontSize: '24px',
@@ -230,11 +226,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
 
         {/* たすけて ボタン */}
         <button
-          ref={(el) => {
-            if (el) {
-              buttonRefs.current['btn-help'] = el;
-            }
-          }}
+          ref={(el) => { buttonRefs.current['btn-help'] = el; }}
           style={{
             padding: '24px 32px',
             fontSize: '24px',
@@ -260,11 +252,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
 
         {/* 雑談 ボタン */}
         <button
-          ref={(el) => {
-            if (el) {
-              buttonRefs.current['btn-chat'] = el;
-            }
-          }}
+          ref={(el) => { buttonRefs.current['btn-chat'] = el; }}
           style={{
             padding: '24px 32px',
             fontSize: '24px',

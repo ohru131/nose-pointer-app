@@ -92,6 +92,7 @@ export default function CameraOverlay({
         ctx.translate(canvas.width, 0);
         ctx.scale(-1, 1);
         
+        ctx.globalAlpha = 0.15; // カメラ映像の透明度を15%に設定
         ctx.drawImage(
           video,
           cropX,
@@ -103,11 +104,12 @@ export default function CameraOverlay({
           canvas.width,
           canvas.height
         );
+        ctx.globalAlpha = 1.0; // 透明度をリセット
         
         ctx.restore();
 
         // 薄い半透明オーバーレイ
-        ctx.fillStyle = 'rgba(255, 255, 255, 0.05)';
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.05)';
         ctx.fillRect(0, 0, canvas.width, canvas.height);
 
         // 鼻ポインタを画面中央に描画（拡大表示なので中央が鼻）
