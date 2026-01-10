@@ -48,33 +48,13 @@ export function useNosePointer() {
     try {
       console.log('Initializing MediaPipe FaceLandmarker...');
       
-      // 複数のWASMパスを試す
-      const wasmPaths = [
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.22-rc.20250304/wasm/',
-        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision/wasm/',
-        'https://storage.googleapis.com/mediapipe-models/tasks/vision/wasm/',
-      ];
+      // 公式CDNパスを使用
+      const wasmPath = 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm';
+      
+      console.log(`Loading WASM from: ${wasmPath}`);
+      const filesetResolver = await FilesetResolver.forVisionTasks(wasmPath);
 
-      let filesetResolver = null;
-      let lastError: Error | null = null;
-
-      for (const wasmPath of wasmPaths) {
-        try {
-          console.log(`Trying WASM path: ${wasmPath}`);
-          filesetResolver = await FilesetResolver.forVisionTasks(wasmPath);
-          console.log(`Successfully loaded from: ${wasmPath}`);
-          break;
-        } catch (err) {
-          lastError = err as Error;
-          console.warn(`Failed to load from ${wasmPath}:`, err);
-          continue;
-        }
-      }
-
-      if (!filesetResolver) {
-        throw new Error(`Failed to load WASM files from all paths. Last error: ${lastError?.message}`);
-      }
-
+      console.log('Creating FaceLandmarker...');
       const landmarker = await FaceLandmarker.createFromOptions(filesetResolver, {
         baseOptions: {
           modelAssetPath:
@@ -90,8 +70,8 @@ export function useNosePointer() {
       setError(null);
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to initialize MediaPipe';
-      setError(message);
       console.error('MediaPipe initialization error:', err);
+      setError(`MediaPipeの初期化に失敗しました: ${message}`);
     }
   }, []);
 
@@ -112,8 +92,8 @@ export function useNosePointer() {
       }
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Failed to access camera';
-      setError(message);
       console.error('Camera access error:', err);
+      setError(`カメラアクセスエラー: ${message}`);
     }
   }, []);
 
@@ -175,8 +155,6 @@ export function useNosePointer() {
         const noseLandmark = landmarks[NOSE_LANDMARK_INDEX];
 
         if (noseLandmark) {
-          const videoWidth = videoRef.current.videoWidth;
-          const videoHeight = videoRef.current.videoHeight;
           const screenWidth = window.innerWidth;
           const screenHeight = window.innerHeight;
 
