@@ -1,8 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNosePointer } from '@/hooks/useNosePointer';
 import { usePointerFSM } from '@/hooks/usePointerFSM';
-import { VirtualPointer } from './VirtualPointer';
-import { PointerButton } from './PointerButton';
 import CameraOverlay from './CameraOverlay';
 import { useLogCapture, LogDisplay } from './LogDisplay';
 
@@ -177,60 +175,119 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
           marginBottom: '80px',
         }}
       >
-        <PointerButton
-          id="btn-want"
-          label="ほしい"
-          icon="🎁"
-          state={fsmContext.state}
-          isActive={fsmContext.activeButtonId === 'btn-want'}
-          isConfirmed={confirmedAction === 'btn-want'}
-          onRegister={(id, rect) =>
-            registerButton(id, {
-              x: rect.left,
-              y: rect.top,
-              width: rect.width,
-              height: rect.height,
-              id,
-            })
-          }
-          onUnregister={unregisterButton}
-        />
-        <PointerButton
-          id="btn-help"
-          label="たすけて"
-          icon="🆘"
-          state={fsmContext.state}
-          isActive={fsmContext.activeButtonId === 'btn-help'}
-          isConfirmed={confirmedAction === 'btn-help'}
-          onRegister={(id, rect) =>
-            registerButton(id, {
-              x: rect.left,
-              y: rect.top,
-              width: rect.width,
-              height: rect.height,
-              id,
-            })
-          }
-          onUnregister={unregisterButton}
-        />
-        <PointerButton
-          id="btn-chat"
-          label="雑談"
-          icon="💬"
-          state={fsmContext.state}
-          isActive={fsmContext.activeButtonId === 'btn-chat'}
-          isConfirmed={confirmedAction === 'btn-chat'}
-          onRegister={(id, rect) =>
-            registerButton(id, {
-              x: rect.left,
-              y: rect.top,
-              width: rect.width,
-              height: rect.height,
-              id,
-            })
-          }
-          onUnregister={unregisterButton}
-        />
+        {/* ほしい ボタン */}
+        <button
+          ref={(el) => {
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              registerButton('btn-want', {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                id: 'btn-want',
+              });
+            }
+          }}
+          onMouseEnter={() => {}}
+          style={{
+            padding: '24px 32px',
+            fontSize: '24px',
+            fontWeight: '600',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease-out',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            minWidth: '140px',
+            backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(59, 130, 246)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'white',
+            color: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
+            transform: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'scale(1.1)' : confirmedAction === 'btn-want' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 8px 24px rgba(59, 130, 246, 0.4)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <span style={{ fontSize: '40px' }}>🎁</span>
+          <span>ほしい</span>
+        </button>
+
+        {/* たすけて ボタン */}
+        <button
+          ref={(el) => {
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              registerButton('btn-help', {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                id: 'btn-help',
+              });
+            }
+          }}
+          onMouseEnter={() => {}}
+          style={{
+            padding: '24px 32px',
+            fontSize: '24px',
+            fontWeight: '600',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease-out',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            minWidth: '140px',
+            backgroundColor: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'rgb(59, 130, 246)' : confirmedAction === 'btn-help' ? 'rgb(34, 197, 94)' : 'white',
+            color: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
+            transform: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'scale(1.1)' : confirmedAction === 'btn-help' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 8px 24px rgba(59, 130, 246, 0.4)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <span style={{ fontSize: '40px' }}>🆘</span>
+          <span>たすけて</span>
+        </button>
+
+        {/* 雑談 ボタン */}
+        <button
+          ref={(el) => {
+            if (el) {
+              const rect = el.getBoundingClientRect();
+              registerButton('btn-chat', {
+                x: rect.left,
+                y: rect.top,
+                width: rect.width,
+                height: rect.height,
+                id: 'btn-chat',
+              });
+            }
+          }}
+          onMouseEnter={() => {}}
+          style={{
+            padding: '24px 32px',
+            fontSize: '24px',
+            fontWeight: '600',
+            border: 'none',
+            borderRadius: '12px',
+            cursor: 'pointer',
+            transition: 'all 0.2s ease-out',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '12px',
+            minWidth: '140px',
+            backgroundColor: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'rgb(59, 130, 246)' : confirmedAction === 'btn-chat' ? 'rgb(34, 197, 94)' : 'white',
+            color: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
+            transform: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'scale(1.1)' : confirmedAction === 'btn-chat' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 8px 24px rgba(59, 130, 246, 0.4)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
+          }}
+        >
+          <span style={{ fontSize: '40px' }}>💬</span>
+          <span>雑談</span>
+        </button>
       </div>
 
       {/* 戻るゾーン */}
