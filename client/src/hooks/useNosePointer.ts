@@ -121,6 +121,7 @@ export function useNosePointer() {
 
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
+        videoRef.current.muted = true; // 音声を無効化
 
         // ビデオ再生の準備完了を待つ
         const playPromise = videoRef.current.play();
@@ -128,7 +129,12 @@ export function useNosePointer() {
           playPromise
             .then(() => {
               console.log('✅ Video playback started');
-              setDebugInfo((prev) => ({ ...prev, camera: 'Playing' }));
+              console.log(`📐 Video dimensions: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`);
+              setDebugInfo((prev) => ({ 
+                ...prev, 
+                camera: 'Playing',
+                videoDimensions: `${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`,
+              }));
             })
             .catch((err) => {
               console.error('❌ Video playback error:', err);
@@ -269,6 +275,16 @@ export function useNosePointer() {
   // 初期化と開始
   useEffect(() => {
     console.log('🚀 useNosePointer mounted');
+    
+    // ビデオ要素を作成（DOMに追加しない、MediaPipeの内部処理用）
+    if (!videoRef.current) {
+      const video = document.createElement('video');
+      video.autoplay = true;
+      video.playsInline = true;
+      video.style.display = 'none'; // 非表示
+      videoRef.current = video;
+    }
+    
     initializeFaceLandmarker();
     startVideoStream();
 
