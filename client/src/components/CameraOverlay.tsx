@@ -5,6 +5,7 @@ interface CameraOverlayProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   pointerPosition: PointerPosition;
   isInitialized: boolean;
+  isHovering?: boolean;
 }
 
 /**
@@ -20,6 +21,7 @@ export default function CameraOverlay({
   videoRef,
   pointerPosition,
   isInitialized,
+  isHovering = false,
 }: CameraOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -169,13 +171,12 @@ export default function CameraOverlay({
               width: '40px',
               height: '40px',
               borderRadius: '50%',
-              border: `2px solid ${
-                pointerPosition.confidence > 0.8
+              border: `2px solid ${pointerPosition.confidence > 0.8
                   ? '#22c55e'
                   : pointerPosition.confidence > 0.6
                     ? '#3b82f6'
                     : '#ef4444'
-              }`,
+                }`,
               backgroundColor:
                 pointerPosition.confidence > 0.8
                   ? 'rgba(34, 197, 94, 0.15)'
@@ -265,6 +266,32 @@ export default function CameraOverlay({
           >
             {Math.round(pointerPosition.confidence * 100)}%
           </div>
+          {/* 確定アクションガイド（ホバー時のみ表示） */}
+          {isHovering && (
+            <div
+              style={{
+                position: 'fixed',
+                left: `${pointerPosition.x}px`,
+                top: `${pointerPosition.y + 40}px`,
+                transform: 'translateX(-50%)',
+                backgroundColor: 'rgba(37, 99, 235, 0.9)',
+                color: 'white',
+                padding: '6px 12px',
+                borderRadius: '20px',
+                fontSize: '14px',
+                fontWeight: 'bold',
+                zIndex: 25,
+                boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '4px',
+                animation: 'pulse 1.5s infinite',
+              }}
+            >
+              <span>確定</span>
+              <span style={{ fontSize: '18px' }}>↓</span>
+            </div>
+          )}
         </>
       )}
 

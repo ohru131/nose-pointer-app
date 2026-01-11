@@ -38,6 +38,7 @@ export function useNosePointer() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
+  const [sensitivity, setSensitivity] = useState(2.0);
 
   // 前フレームの鼻位置を追跡（ジェスチャ検出用）
   const prevNosePosRef = useRef<{ x: number; y: number } | null>(null);
@@ -130,8 +131,8 @@ export function useNosePointer() {
             .then(() => {
               console.log('✅ Video playback started');
               console.log(`📐 Video dimensions: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`);
-              setDebugInfo((prev) => ({ 
-                ...prev, 
+              setDebugInfo((prev) => ({
+                ...prev,
                 camera: 'Playing',
                 videoDimensions: `${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`,
               }));
@@ -238,8 +239,13 @@ export function useNosePointer() {
 
           // ビデオ座標をスクリーン座標に変換
           // ユーザーの要望により、カメラが鏡表示になっているのに合わせて動きを左右反転させる
-          const screenX = (1 - noseLandmark.x) * screenWidth;
-          const screenY = noseLandmark.y * screenHeight;
+          // 感度調整を追加: 中心(0.5)からの偏差を増幅する
+          const centeredX = 1 - noseLandmark.x - 0.5;
+          const centeredY = noseLandmark.y - 0.5;
+
+          const screenX = (centeredX * sensitivity + 0.5) * screenWidth;
+          const screenY = (centeredY * sensitivity + 0.5) * screenHeight;
+
           const confidence = noseLandmark.z || 0.5;
 
           setPointerPosition({
@@ -276,7 +282,7 @@ export function useNosePointer() {
   // 初期化と開始
   useEffect(() => {
     console.log('🚀 useNosePointer mounted');
-    
+
     // ビデオ要素を作成（DOMに追加しない、MediaPipeの内部処理用）
     if (!videoRef.current) {
       const video = document.createElement('video');
@@ -285,7 +291,7 @@ export function useNosePointer() {
       video.style.display = 'none'; // 非表示
       videoRef.current = video;
     }
-    
+
     initializeFaceLandmarker();
     startVideoStream();
 
@@ -336,5 +342,7 @@ export function useNosePointer() {
     error,
     resetGesture,
     debugInfo,
+    sensitivity,
+    setSensitivity,
   };
 }

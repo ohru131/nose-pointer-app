@@ -9,7 +9,7 @@ interface MainSelectionScreenProps {
 }
 
 export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSelect }) => {
-  const { videoRef, pointerPosition, gestureState, isInitialized, error, resetGesture, debugInfo } = useNosePointer();
+  const { videoRef, pointerPosition, gestureState, isInitialized, error, resetGesture, debugInfo, sensitivity, setSensitivity } = useNosePointer();
   const { fsmContext, registerButton, unregisterButton, updatePointerPosition, handleGesture, resetConfirm, resetCancel } = usePointerFSM();
   const logs = useLogCapture();
 
@@ -106,7 +106,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
           ブラウザの設定でカメラへのアクセスを許可してください。<br />
           ページをリロードして再度試してください。
         </p>
-        
+
         <div style={{ width: '100%', maxWidth: '800px', marginBottom: '20px' }}>
           <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'left' }}>📊 デバッグ情報:</h3>
           <div style={{ backgroundColor: '#f0f0f0', padding: '12px', borderRadius: '8px', textAlign: 'left', fontSize: '12px', color: '#333', fontFamily: 'monospace' }}>
@@ -126,7 +126,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
 
   if (!isInitialized || showInitInfo) {
     const elapsedTime = Date.now() - initStartTime;
-    
+
     return (
       <div style={{ padding: '20px', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
         <h2 style={{ fontSize: '28px', marginBottom: '12px', fontWeight: 'bold' }}>⏳ 初期化中...</h2>
@@ -173,6 +173,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         videoRef={videoRef}
         pointerPosition={pointerPosition}
         isInitialized={isInitialized}
+        isHovering={fsmContext.state === 'hover'}
       />
 
       {/* タイトル */}
@@ -187,6 +188,22 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
       >
         今、何を伝えたいですか？
       </h1>
+
+      {/* 感度調整スライダー */}
+      <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 50, backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: '16px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+        <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold', color: '#334155' }}>
+          🖱️ 感度調整: {sensitivity.toFixed(1)}
+        </label>
+        <input
+          type="range"
+          min="1.0"
+          max="5.0"
+          step="0.1"
+          value={sensitivity}
+          onChange={(e) => setSensitivity(parseFloat(e.target.value))}
+          style={{ width: '200px', cursor: 'pointer' }}
+        />
+      </div>
 
       {/* ボタングループ */}
       <div
@@ -206,25 +223,25 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             }
           }}
           style={{
-            padding: '24px 32px',
-            fontSize: '24px',
-            fontWeight: '600',
-            border: 'none',
-            borderRadius: '12px',
+            padding: '40px 50px', // サイズアップ
+            fontSize: '32px',     // サイズアップ
+            fontWeight: '700',
+            border: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '4px solid #2563eb' : 'none', // ホバー時に枠線
+            borderRadius: '24px', // 丸みを増やす
             cursor: 'pointer',
-            transition: 'all 0.2s ease-out',
+            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '12px',
-            minWidth: '140px',
-            backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(59, 130, 246)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'white',
+            gap: '16px',
+            minWidth: '220px', // 幅アップ
+            backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'white',
             color: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
-            transform: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'scale(1.1)' : confirmedAction === 'btn-want' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 8px 24px rgba(59, 130, 246, 0.4)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
+            transform: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-want' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 25px rgba(0, 0, 0, 0.05)',
           }}
         >
-          <span style={{ fontSize: '40px' }}>🎁</span>
+          <span style={{ fontSize: '64px' }}>🎁</span>
           <span>ほしい</span>
         </button>
 
@@ -236,25 +253,25 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             }
           }}
           style={{
-            padding: '24px 32px',
-            fontSize: '24px',
-            fontWeight: '600',
-            border: 'none',
-            borderRadius: '12px',
+            padding: '40px 50px',
+            fontSize: '32px',
+            fontWeight: '700',
+            border: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '4px solid #2563eb' : 'none',
+            borderRadius: '24px',
             cursor: 'pointer',
-            transition: 'all 0.2s ease-out',
+            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '12px',
-            minWidth: '140px',
-            backgroundColor: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'rgb(59, 130, 246)' : confirmedAction === 'btn-help' ? 'rgb(34, 197, 94)' : 'white',
+            gap: '16px',
+            minWidth: '220px',
+            backgroundColor: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-help' ? 'rgb(34, 197, 94)' : 'white',
             color: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
-            transform: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'scale(1.1)' : confirmedAction === 'btn-help' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 8px 24px rgba(59, 130, 246, 0.4)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
+            transform: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-help' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 25px rgba(0, 0, 0, 0.05)',
           }}
         >
-          <span style={{ fontSize: '40px' }}>🆘</span>
+          <span style={{ fontSize: '64px' }}>🆘</span>
           <span>たすけて</span>
         </button>
 
@@ -266,25 +283,25 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             }
           }}
           style={{
-            padding: '24px 32px',
-            fontSize: '24px',
-            fontWeight: '600',
-            border: 'none',
-            borderRadius: '12px',
+            padding: '40px 50px',
+            fontSize: '32px',
+            fontWeight: '700',
+            border: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '4px solid #2563eb' : 'none',
+            borderRadius: '24px',
             cursor: 'pointer',
-            transition: 'all 0.2s ease-out',
+            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '12px',
-            minWidth: '140px',
-            backgroundColor: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'rgb(59, 130, 246)' : confirmedAction === 'btn-chat' ? 'rgb(34, 197, 94)' : 'white',
+            gap: '16px',
+            minWidth: '220px',
+            backgroundColor: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-chat' ? 'rgb(34, 197, 94)' : 'white',
             color: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
-            transform: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'scale(1.1)' : confirmedAction === 'btn-chat' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 8px 24px rgba(59, 130, 246, 0.4)' : '0 4px 12px rgba(0, 0, 0, 0.1)',
+            transform: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-chat' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 25px rgba(0, 0, 0, 0.05)',
           }}
         >
-          <span style={{ fontSize: '40px' }}>💬</span>
+          <span style={{ fontSize: '64px' }}>💬</span>
           <span>雑談</span>
         </button>
       </div>
