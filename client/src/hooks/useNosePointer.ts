@@ -237,7 +237,8 @@ export function useNosePointer() {
           const screenHeight = window.innerHeight;
 
           // ビデオ座標をスクリーン座標に変換
-          const screenX = noseLandmark.x * screenWidth;
+          // ユーザーの要望により、カメラが鏡表示になっているのに合わせて動きを左右反転させる
+          const screenX = (1 - noseLandmark.x) * screenWidth;
           const screenY = noseLandmark.y * screenHeight;
           const confidence = noseLandmark.z || 0.5;
 
