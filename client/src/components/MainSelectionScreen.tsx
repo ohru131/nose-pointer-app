@@ -14,6 +14,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
   const logs = useLogCapture();
 
   const [confirmedAction, setConfirmedAction] = useState<string | null>(null);
+  const [clickFlash, setClickFlash] = useState(false);
   const [showInitInfo, setShowInitInfo] = useState(true);
   const [initStartTime] = useState(Date.now());
 
@@ -59,6 +60,8 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
   useEffect(() => {
     if (fsmContext.state === 'confirm' && fsmContext.confirmedButtonId) {
       setConfirmedAction(fsmContext.confirmedButtonId);
+      setClickFlash(true);
+      setTimeout(() => setClickFlash(false), 300);
 
       const timer = setTimeout(() => {
         const categoryMap: Record<string, 'want' | 'help' | 'chat'> = {
@@ -176,6 +179,19 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         isHovering={fsmContext.state === 'hover'}
       />
 
+      {/* クリック時のフラッシュエフェクト */}
+      {clickFlash && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            backgroundColor: 'rgba(255, 255, 255, 0.4)',
+            zIndex: 9999,
+            pointerEvents: 'none',
+          }}
+        />
+      )}
+
       {/* タイトル */}
       <h1
         style={{
@@ -197,8 +213,8 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         <input
           type="range"
           min="1.0"
-          max="5.0"
-          step="0.1"
+          max="10.0"
+          step="0.5"
           value={sensitivity}
           onChange={(e) => setSensitivity(parseFloat(e.target.value))}
           style={{ width: '200px', cursor: 'pointer' }}
@@ -235,10 +251,10 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             alignItems: 'center',
             gap: '16px',
             minWidth: '220px', // 幅アップ
-            backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'white',
-            color: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
+            backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)', // デフォルト色を濃く
+            color: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)', // テキスト色も調整
             transform: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-want' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 25px rgba(0, 0, 0, 0.05)',
+            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)', // 影を強化
           }}
         >
           <span style={{ fontSize: '64px' }}>🎁</span>
@@ -265,10 +281,10 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             alignItems: 'center',
             gap: '16px',
             minWidth: '220px',
-            backgroundColor: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-help' ? 'rgb(34, 197, 94)' : 'white',
-            color: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
+            backgroundColor: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-help' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
+            color: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)',
             transform: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-help' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 25px rgba(0, 0, 0, 0.05)',
+            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
           }}
         >
           <span style={{ fontSize: '64px' }}>🆘</span>
@@ -295,10 +311,10 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             alignItems: 'center',
             gap: '16px',
             minWidth: '220px',
-            backgroundColor: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-chat' ? 'rgb(34, 197, 94)' : 'white',
-            color: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'white' : 'rgb(55, 65, 81)',
+            backgroundColor: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-chat' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
+            color: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)',
             transform: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-chat' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 25px rgba(0, 0, 0, 0.05)',
+            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
           }}
         >
           <span style={{ fontSize: '64px' }}>💬</span>

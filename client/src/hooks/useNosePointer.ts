@@ -277,7 +277,7 @@ export function useNosePointer() {
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  }, [detectGesture]);
+  }, [detectGesture, sensitivity]);
 
   // 初期化と開始
   useEffect(() => {
