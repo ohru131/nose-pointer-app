@@ -9,6 +9,8 @@ import { vitePluginManusRuntime } from "vite-plugin-manus-runtime";
 const plugins = [react(), tailwindcss(), jsxLocPlugin(), vitePluginManusRuntime()];
 
 export default defineConfig({
+  // Default base for GitHub Pages project site. Can be overridden with VITE_BASE env var.
+  base: process.env.VITE_BASE || '/nose-pointer-app/',
   plugins,
   resolve: {
     alias: {
