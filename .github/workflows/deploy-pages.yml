@@ -1,4 +1,4 @@
-name: Build and Deploy to GitHub Pages
+name: Build and Deploy to gh-pages
 
 on:
   push:
@@ -6,7 +6,6 @@ on:
       - main
 
 permissions:
-  pages: write
   contents: read
 
 jobs:
@@ -33,26 +32,11 @@ jobs:
           VITE_BASE: '/nose-pointer-app/'
         run: pnpm build
 
-      - name: Prepare Pages artifact
-        run: |
-          echo "Preparing Pages artifact from dist/public"
-          if [ ! -d "dist/public" ]; then
-            echo "dist/public not found, listing dist:" 
-            ls -la dist || true
-            exit 1
-          fi
-          rm -rf out || true
-          cp -r dist/public ./out
-          # SPA fallback: copy index.html to 404.html
-          if [ -f ./out/index.html ]; then
-            cp ./out/index.html ./out/404.html
-          fi
-        shell: bash
-
-      - name: Upload artifact for GitHub Pages
-        uses: actions/upload-pages-artifact@v1
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
         with:
-          path: ./out
-
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist/public
+          publish_branch: gh-pages
+          # optional: keep history false -> default behavior overwrites branch
+          allow_empty_commit: true
