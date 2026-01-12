@@ -217,18 +217,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         />
       )}
 
-      {/* タイトル */}
-      <h1
-        style={{
-          fontSize: '32px',
-          fontWeight: '700',
-          marginBottom: '60px',
-          color: '#1e293b',
-          textAlign: 'center',
-        }}
-      >
-        今、何を伝えたいですか？
-      </h1>
+
 
       {/* 感度調整スライダー */}
       <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 50, backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: '16px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
@@ -246,14 +235,17 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
         />
       </div>
 
-      {/* ボタングループ */}
+      {/* ボタングループ - 画面全体に広がるように調整 */}
       <div
         style={{
           display: 'flex',
-          gap: '40px',
+          gap: '30px',
           justifyContent: 'center',
-          flexWrap: 'wrap',
-          marginBottom: '80px',
+          alignItems: 'center',
+          width: '100%',
+          height: '100vh', // 画面いっぱいに
+          padding: '40px',
+          boxSizing: 'border-box'
         }}
       >
         {/* ほしい ボタン */}
@@ -264,25 +256,26 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             }
           }}
           style={{
-            padding: '40px 50px', // サイズアップ
-            fontSize: '32px',     // サイズアップ
-            fontWeight: '700',
-            border: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '6px solid #fbbf24' : '2px solid transparent', // ホバー時に極太の黄色枠
-            borderRadius: '24px', // 丸みを増やす
+            flex: 1, // 均等に広げる
+            height: '70vh', // 高さも十分に確保
+            fontSize: '64px', // 文字サイズ特大
+            fontWeight: '800',
+            border: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '12px solid #fbbf24' : '4px solid transparent', // 枠線も太く
+            borderRadius: '40px',
             cursor: 'pointer',
             transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '16px',
-            minWidth: '220px', // 幅アップ
-            backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)', // デフォルト色を濃く
-            color: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)', // テキスト色も調整
-            transform: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-want' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 0 0 4px rgba(251, 191, 36, 0.5), 0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)', // 影を強化＋グロー効果
+            justifyContent: 'center', // 中央寄せ
+            gap: '32px',
+            backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
+            color: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)',
+            transform: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'scale(1.05) translateY(-20px)' : confirmedAction === 'btn-want' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 0 0 8px rgba(251, 191, 36, 0.5), 0 40px 80px rgba(37, 99, 235, 0.5)' : '0 20px 40px rgba(37, 99, 235, 0.15)',
           }}
         >
-          <span style={{ fontSize: '64px' }}>🎁</span>
+          <span style={{ fontSize: '140px' }}>🎁</span>
           <span>ほしい</span>
         </button>
 
@@ -294,25 +287,26 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             }
           }}
           style={{
-            padding: '40px 50px',
-            fontSize: '32px',
-            fontWeight: '700',
-            border: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '6px solid #fbbf24' : '2px solid transparent',
-            borderRadius: '24px',
+            flex: 1,
+            height: '70vh',
+            fontSize: '64px',
+            fontWeight: '800',
+            border: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '12px solid #fbbf24' : '4px solid transparent',
+            borderRadius: '40px',
             cursor: 'pointer',
             transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '16px',
-            minWidth: '220px',
+            justifyContent: 'center',
+            gap: '32px',
             backgroundColor: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-help' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
             color: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)',
-            transform: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-help' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 0 0 4px rgba(251, 191, 36, 0.5), 0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
+            transform: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'scale(1.05) translateY(-20px)' : confirmedAction === 'btn-help' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 0 0 8px rgba(251, 191, 36, 0.5), 0 40px 80px rgba(37, 99, 235, 0.5)' : '0 20px 40px rgba(37, 99, 235, 0.15)',
           }}
         >
-          <span style={{ fontSize: '64px' }}>🆘</span>
+          <span style={{ fontSize: '140px' }}>🆘</span>
           <span>たすけて</span>
         </button>
 
@@ -324,49 +318,31 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             }
           }}
           style={{
-            padding: '40px 50px',
-            fontSize: '32px',
-            fontWeight: '700',
-            border: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '6px solid #fbbf24' : '2px solid transparent',
-            borderRadius: '24px',
+            flex: 1,
+            height: '70vh',
+            fontSize: '64px',
+            fontWeight: '800',
+            border: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '12px solid #fbbf24' : '4px solid transparent',
+            borderRadius: '40px',
             cursor: 'pointer',
             transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '16px',
-            minWidth: '220px',
+            justifyContent: 'center',
+            gap: '32px',
             backgroundColor: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-chat' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
             color: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)',
-            transform: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-chat' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 0 0 4px rgba(251, 191, 36, 0.5), 0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
+            transform: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'scale(1.05) translateY(-20px)' : confirmedAction === 'btn-chat' ? 'scale(0.95)' : 'scale(1)',
+            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 0 0 8px rgba(251, 191, 36, 0.5), 0 40px 80px rgba(37, 99, 235, 0.5)' : '0 20px 40px rgba(37, 99, 235, 0.15)',
           }}
         >
-          <span style={{ fontSize: '64px' }}>💬</span>
+          <span style={{ fontSize: '140px' }}>💬</span>
           <span>雑談</span>
         </button>
       </div>
 
-      {/* 戻るゾーン */}
-      <div
-        style={{
-          position: 'fixed',
-          bottom: 0,
-          left: 0,
-          right: 0,
-          height: '80px',
-          backgroundColor: 'rgba(100, 116, 139, 0.1)',
-          borderTop: '2px dashed rgb(100, 116, 139)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          fontSize: '14px',
-          color: 'rgb(100, 116, 139)',
-          pointerEvents: 'none',
-        }}
-      >
-        ↑ ここでキャンセル
-      </div>
+
 
       {/* デバッグ情報 */}
       {process.env.NODE_ENV === 'development' && (

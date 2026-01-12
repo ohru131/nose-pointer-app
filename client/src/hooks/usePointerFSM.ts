@@ -18,7 +18,6 @@ export interface FSMContext {
 }
 
 const HOVER_THRESHOLD_MS = 300; // ホバー状態から確定までの静止時間
-const CANCEL_ZONE_HEIGHT = 80; // 画面下部のキャンセルゾーンの高さ
 
 export function usePointerFSM() {
   const [fsmContext, setFsmContext] = useState<FSMContext>({
@@ -63,12 +62,6 @@ export function usePointerFSM() {
     []
   );
 
-  // ポインタがキャンセルゾーン内かどうかを判定
-  const isPointerInCancelZone = useCallback((pointerY: number): boolean => {
-    const screenHeight = window.innerHeight;
-    return pointerY >= screenHeight - CANCEL_ZONE_HEIGHT;
-  }, []);
-
   // ポインタ位置の更新と状態遷移
   const updatePointerPosition = useCallback(
     (pointerX: number, pointerY: number) => {
@@ -80,23 +73,6 @@ export function usePointerFSM() {
       // そもそも FSMContext を ref で持つ設計にするのが理想。
       // ただし、今回はuseEffect側で state を監視して制御しているため、
       // ここでブロックするよりも setFsmContext の update function 内で check する。
-
-      // キャンセルゾーン判定
-      if (isPointerInCancelZone(pointerY)) {
-        setFsmContext((prev) => {
-          // 確定中はキャンセルゾーン移動も無視するか、あるいはキャンセル許可するか。
-          // ここでは「確定後は遷移まで操作不能」とする
-          if (prev.state === 'confirm') return prev;
-
-          return {
-            ...prev,
-            state: 'cancel',
-            activeButtonId: null,
-          };
-        });
-        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-        return;
-      }
 
       // ボタン内判定
       let foundButton: ButtonBounds | null = null;
@@ -148,7 +124,7 @@ export function usePointerFSM() {
         });
       }
     },
-    [buttonBounds, isPointerInButton, isPointerInCancelZone]
+    [buttonBounds, isPointerInButton]
   );
 
   // ジェスチャによる状態遷移
