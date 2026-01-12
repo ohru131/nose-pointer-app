@@ -33,6 +33,9 @@ export function usePointerFSM() {
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastGestureTimeRef = useRef<number>(Date.now());
 
+  // 直近のホバー情報を記録（グレース期間用）
+  const lastHoveredRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
+
   // ボタン境界の登録
   const registerButton = useCallback((id: string, bounds: ButtonBounds) => {
     setButtonBounds((prev) => new Map(prev).set(id, bounds));
@@ -116,6 +119,8 @@ export function usePointerFSM() {
         setFsmContext((prev) => {
           if (prev.state !== 'idle') {
             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+            // ホバー終了時間を記録
+            lastHoveredRef.current = { id: prev.activeButtonId, time: Date.now() };
           }
           return {
             ...prev,
@@ -135,13 +140,25 @@ export function usePointerFSM() {
       if (direction === 'none') return;
 
       setFsmContext((prev) => {
-        if (direction === 'down' && prev.state === 'hover' && prev.activeButtonId) {
-          // 下方向ジェスチャ → 確定
-          return {
-            ...prev,
-            state: 'confirm',
-            confirmedButtonId: prev.activeButtonId,
-          };
+        if (direction === 'down') {
+          // 1. ホバー中の確定
+          if (prev.state === 'hover' && prev.activeButtonId) {
+            return {
+              ...prev,
+              state: 'confirm',
+              confirmedButtonId: prev.activeButtonId,
+            };
+          }
+
+          // 2. グレース期間（ホバーから外れてすぐ）の確定
+          // 「うなずく」動作でポインタがボタンから外れてしまう問題への対策
+          if (prev.state === 'idle' && lastHoveredRef.current.id && Date.now() - lastHoveredRef.current.time < 500) {
+            return {
+              ...prev,
+              state: 'confirm',
+              confirmedButtonId: lastHoveredRef.current.id,
+            };
+          }
         }
 
         if (direction === 'up') {

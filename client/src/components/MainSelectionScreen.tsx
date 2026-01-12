@@ -242,10 +242,10 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             padding: '40px 50px', // サイズアップ
             fontSize: '32px',     // サイズアップ
             fontWeight: '700',
-            border: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '4px solid #2563eb' : 'none', // ホバー時に枠線
+            border: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '6px solid #fbbf24' : '2px solid transparent', // ホバー時に極太の黄色枠
             borderRadius: '24px', // 丸みを増やす
             cursor: 'pointer',
-            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -254,7 +254,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             backgroundColor: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-want' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)', // デフォルト色を濃く
             color: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)', // テキスト色も調整
             transform: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-want' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)', // 影を強化
+            boxShadow: fsmContext.activeButtonId === 'btn-want' && fsmContext.state === 'hover' ? '0 0 0 4px rgba(251, 191, 36, 0.5), 0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)', // 影を強化＋グロー効果
           }}
         >
           <span style={{ fontSize: '64px' }}>🎁</span>
@@ -272,10 +272,10 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             padding: '40px 50px',
             fontSize: '32px',
             fontWeight: '700',
-            border: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '4px solid #2563eb' : 'none',
+            border: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '6px solid #fbbf24' : '2px solid transparent',
             borderRadius: '24px',
             cursor: 'pointer',
-            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -284,7 +284,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             backgroundColor: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-help' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
             color: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)',
             transform: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-help' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
+            boxShadow: fsmContext.activeButtonId === 'btn-help' && fsmContext.state === 'hover' ? '0 0 0 4px rgba(251, 191, 36, 0.5), 0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
           }}
         >
           <span style={{ fontSize: '64px' }}>🆘</span>
@@ -302,10 +302,10 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             padding: '40px 50px',
             fontSize: '32px',
             fontWeight: '700',
-            border: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '4px solid #2563eb' : 'none',
+            border: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '6px solid #fbbf24' : '2px solid transparent',
             borderRadius: '24px',
             cursor: 'pointer',
-            transition: 'all 0.15s cubic-bezier(0.4, 0, 0.2, 1)',
+            transition: 'all 0.1s cubic-bezier(0.4, 0, 0.2, 1)',
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
@@ -314,7 +314,7 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
             backgroundColor: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'rgb(37, 99, 235)' : confirmedAction === 'btn-chat' ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
             color: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'white' : 'rgb(30, 58, 138)',
             transform: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? 'scale(1.15) translateY(-10px)' : confirmedAction === 'btn-chat' ? 'scale(0.95)' : 'scale(1)',
-            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
+            boxShadow: fsmContext.activeButtonId === 'btn-chat' && fsmContext.state === 'hover' ? '0 0 0 4px rgba(251, 191, 36, 0.5), 0 20px 40px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.15)',
           }}
         >
           <span style={{ fontSize: '64px' }}>💬</span>
