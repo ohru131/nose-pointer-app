@@ -74,13 +74,26 @@ export function usePointerFSM() {
     (pointerX: number, pointerY: number) => {
       lastGestureTimeRef.current = Date.now();
 
+      // 状態が 'confirm' の場合は、リセットされるまで状態遷移しない (連打防止 & 緑色固定バグ修正)
+      // setFsmContextのコールバック内で現在のstateを確認する必要があるが、
+      // ここでは簡易的に参照できないため、setFsmContext内でガードするか、
+      // そもそも FSMContext を ref で持つ設計にするのが理想。
+      // ただし、今回はuseEffect側で state を監視して制御しているため、
+      // ここでブロックするよりも setFsmContext の update function 内で check する。
+
       // キャンセルゾーン判定
       if (isPointerInCancelZone(pointerY)) {
-        setFsmContext((prev) => ({
-          ...prev,
-          state: 'cancel',
-          activeButtonId: null,
-        }));
+        setFsmContext((prev) => {
+          // 確定中はキャンセルゾーン移動も無視するか、あるいはキャンセル許可するか。
+          // ここでは「確定後は遷移まで操作不能」とする
+          if (prev.state === 'confirm') return prev;
+
+          return {
+            ...prev,
+            state: 'cancel',
+            activeButtonId: null,
+          };
+        });
         if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
         return;
       }
@@ -96,6 +109,8 @@ export function usePointerFSM() {
       if (foundButton) {
         // ボタンにホバー中
         setFsmContext((prev) => {
+          if (prev.state === 'confirm') return prev; // 確定中は無視
+
           if (prev.activeButtonId === foundButton!.id) {
             return prev; // 同じボタンでホバー継続
           }
@@ -105,18 +120,20 @@ export function usePointerFSM() {
 
           // ホバー状態に遷移
           const hoverStartTime = Date.now();
-          setFsmContext((inner) => ({
-            ...inner,
+          // ここでreturnして更新
+          return {
+            ...prev,
             state: 'hover',
             activeButtonId: foundButton!.id,
             hoverStartTime,
-          }));
-
-          return prev;
+            confirmedButtonId: null // 念のためリセット
+          };
         });
       } else {
         // ボタン外
         setFsmContext((prev) => {
+          if (prev.state === 'confirm') return prev; // 確定中は無視
+
           if (prev.state !== 'idle') {
             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
             // ホバー終了時間を記録
