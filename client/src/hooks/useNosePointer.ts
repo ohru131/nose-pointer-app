@@ -243,14 +243,27 @@ export function useNosePointer() {
           const centeredX = 1 - noseLandmark.x - 0.5;
           const centeredY = noseLandmark.y - 0.5;
 
-          const screenX = (centeredX * sensitivity + 0.5) * screenWidth;
-          const screenY = (centeredY * sensitivity + 0.5) * screenHeight;
+          const rawScreenX = (centeredX * sensitivity + 0.5) * screenWidth;
+          const rawScreenY = (centeredY * sensitivity + 0.5) * screenHeight;
 
-          const confidence = noseLandmark.z || 0.5;
+          // スムージング処理 (Exponential Moving Average)
+          // アルファ値: 小さいほど滑らかだが遅延が増える (0.1 ~ 0.5 推奨)
+          const alpha = 0.3;
+
+          let smoothedX = rawScreenX;
+          let smoothedY = rawScreenY;
+
+          if (pointerPosition.isTracking) {
+            smoothedX = alpha * rawScreenX + (1 - alpha) * pointerPosition.x;
+            smoothedY = alpha * rawScreenY + (1 - alpha) * pointerPosition.y;
+          }
+
+          // 信頼度は検出できた時点で1.0とする（Z座標は深度なので信頼度ではない）
+          const confidence = 1.0;
 
           setPointerPosition({
-            x: screenX,
-            y: screenY,
+            x: smoothedX,
+            y: smoothedY,
             confidence,
             isTracking: true,
           });
@@ -262,7 +275,7 @@ export function useNosePointer() {
           }));
 
           // ジェスチャ検出
-          detectGesture({ x: screenX, y: screenY }, screenHeight);
+          detectGesture({ x: smoothedX, y: smoothedY }, screenHeight);
         }
       } else {
         setPointerPosition((prev) => ({ ...prev, isTracking: false }));
