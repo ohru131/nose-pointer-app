@@ -25,20 +25,45 @@ export const MainSelectionScreen: React.FC<MainSelectionScreenProps> = ({ onSele
     'btn-chat': null,
   });
 
-  // ボタン境界の登録（マウント時）
+  // ボタン境界の登録と更新
   useEffect(() => {
-    Object.entries(buttonRefs.current).forEach(([id, el]) => {
-      if (el) {
-        const rect = el.getBoundingClientRect();
-        registerButton(id, {
-          x: rect.left,
-          y: rect.top,
-          width: rect.width,
-          height: rect.height,
-          id,
-        });
-      }
-    });
+    const updateButtons = () => {
+      Object.entries(buttonRefs.current).forEach(([id, el]) => {
+        if (el) {
+          const rect = el.getBoundingClientRect();
+          // スクロール量も考慮（getBoundingClientRectはビューポート相対だが、ポインタ比較もビューポート相対で統一中）
+          // ただし、ポインタ計算が window.innerWidth/Height を使用しているため、
+          // スクロールがない前提か、もしくはポインタ座標がクライアント座標系である必要がある。
+          // useNosePointerは画面全体に対する割合で計算しているため、クライアント座標系（fixed position相当）
+          // したがって getBoundingClientRect (ビューポート基準) で正しい。
+          registerButton(id, {
+            x: rect.left,
+            y: rect.top,
+            width: rect.width,
+            height: rect.height,
+            id,
+          });
+        }
+      });
+    };
+
+    // 初回実行
+    updateButtons();
+
+    // 遅延実行（レイアウト安定化待ち）
+    const timeoutId = setTimeout(updateButtons, 500);
+
+    // リサイズ監視
+    window.addEventListener('resize', updateButtons);
+
+    // 定期監視（1秒ごと - 万が一のレイアウトずれに対応）
+    const intervalId = setInterval(updateButtons, 1000);
+
+    return () => {
+      clearTimeout(timeoutId);
+      window.removeEventListener('resize', updateButtons);
+      clearInterval(intervalId);
+    };
   }, [registerButton]);
 
   // ポインタ位置の更新
