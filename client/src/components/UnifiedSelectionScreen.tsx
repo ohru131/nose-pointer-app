@@ -134,9 +134,9 @@ export const UnifiedSelectionScreen: React.FC = () => {
                 setCurrentView('home');
             }
 
-            resetGesture();
+            // resetGestureはuseNosePointer側で自然にリセットされるのを待つため削除
         }
-    }, [gestureState, handleGesture, resetGesture, currentView]);
+    }, [gestureState, handleGesture, currentView]);
 
     // アクション実行
     useEffect(() => {

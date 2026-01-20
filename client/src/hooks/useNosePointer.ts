@@ -219,8 +219,8 @@ export function useNosePointer() {
       }
 
       // 状態更新の抑制：方向が変わった時のみ更新する
-      // または、方向がnoneでない場合は更新する（イベント発火のため）
-      if (direction !== gestureStateRef.current.direction || (direction !== 'none')) {
+      // 無限ループ防止のため、方向が同じ場合は更新しない
+      if (direction !== gestureStateRef.current.direction) {
         const newState = {
           direction,
           distance: distancePercent,
