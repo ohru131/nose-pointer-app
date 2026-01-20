@@ -95,8 +95,8 @@ export const UnifiedSelectionScreen: React.FC = () => {
                 if (fsmContext.state === 'hover' && fsmContext.hoveredButtonId === id) {
                     // 確定ボタンの位置計算（ボタンの下部中央）
                     const confirmBtnId = `${id}-confirm`;
-                    const confirmBtnWidth = 120;
-                    const confirmBtnHeight = 60;
+                    const confirmBtnWidth = 160;
+                    const confirmBtnHeight = 80;
                     const confirmBtnX = rect.left + (rect.width / 2) - (confirmBtnWidth / 2);
                     const confirmBtnY = rect.bottom + 20; // ボタンの下20px
 
@@ -319,7 +319,7 @@ export const UnifiedSelectionScreen: React.FC = () => {
                     const isConfirmed = confirmedAction === btn.id;
 
                     return (
-                        <div key={btn.id} style={{ position: 'relative', display: 'contents' }}>
+                        <div key={btn.id} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
                             <button
                                 ref={el => { buttonRefs.current[btn.id] = el; }}
                                 style={{
@@ -349,23 +349,23 @@ export const UnifiedSelectionScreen: React.FC = () => {
                             {isActive && isHover && (
                                 <div style={{
                                     position: 'absolute',
-                                    top: '100%',
+                                    top: '100%', // ボタンの下端
                                     left: '50%',
                                     transform: 'translateX(-50%)',
-                                    marginTop: '20px',
-                                    width: '120px',
-                                    height: '60px',
-                                    backgroundColor: '#22c55e', // Green
+                                    marginTop: '20px', // ボタンとの間隔
+                                    width: '160px',
+                                    height: '80px',
+                                    backgroundColor: '#f97316', // Orange
                                     color: 'white',
-                                    borderRadius: '12px',
+                                    borderRadius: '16px',
                                     display: 'flex',
                                     alignItems: 'center',
                                     justifyContent: 'center',
-                                    fontSize: '18px',
+                                    fontSize: '24px',
                                     fontWeight: 'bold',
-                                    boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
+                                    boxShadow: '0 8px 16px rgba(249, 115, 22, 0.4)',
                                     zIndex: 100,
-                                    border: '3px solid white',
+                                    border: '4px solid white',
                                     pointerEvents: 'none' // 実際の判定はFSMで行うため、ここでは表示のみ
                                 }}>
                                     決定 ↵

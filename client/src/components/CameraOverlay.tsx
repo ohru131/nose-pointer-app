@@ -143,32 +143,7 @@ export default function CameraOverlay({
         }}
       />
 
-      {/* 確定アクションガイド（ホバー時のみ表示） - オレンジに変更 */}
-      {isHovering && (
-        <div
-          style={{
-            position: 'fixed',
-            left: `${pointerPosition.x}px`,
-            top: `${pointerPosition.y + 30}px`,
-            transform: 'translateX(-50%)',
-            backgroundColor: 'rgba(249, 115, 22, 0.9)', // オレンジ (orange-500)
-            color: 'white',
-            padding: '6px 12px',
-            borderRadius: '20px',
-            fontSize: '16px',
-            fontWeight: 'bold',
-            zIndex: 9999, // 最前面に表示
-            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '4px',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          <span>確定</span>
-          <span style={{ fontSize: '20px', fontWeight: '900' }}>↓</span>
-        </div>
-      )}
+
       {/* トラッキング状態インジケーター */}
       {isInitialized && !pointerPosition.isTracking && (
         <div
