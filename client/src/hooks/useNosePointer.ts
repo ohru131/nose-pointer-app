@@ -203,7 +203,7 @@ export function useNosePointer() {
 
       prevNosePosRef.current = currentPos;
     },
-    []
+    [setGestureState]
   );
 
   // フレーム処理（鼻トラッキング）
@@ -290,7 +290,7 @@ export function useNosePointer() {
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  }, [detectGesture, sensitivity]);
+  }, [sensitivity, setPointerPosition, setDebugInfo]);
 
   // 初期化と開始
   useEffect(() => {
@@ -322,10 +322,15 @@ export function useNosePointer() {
 
   // フレーム処理の開始
   useEffect(() => {
-    if (isInitialized) {
-      console.log('▶️ Starting frame processing');
+    if (!isInitialized) return;
+    
+    console.log('▶️ Starting frame processing');
+    
+    const startProcessing = () => {
       animationFrameRef.current = requestAnimationFrame(processFrame);
-    }
+    };
+    
+    startProcessing();
 
     return () => {
       if (animationFrameRef.current) {
