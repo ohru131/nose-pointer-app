@@ -207,7 +207,7 @@ export function useNosePointer() {
   );
 
   // フレーム処理（鼻トラッキング）
-  const processFrame = useCallback(() => {
+  const processFrame = () => {
     // 現在の状態を参照するためのRef
     const currentPointerPosition = pointerPosition;
     const currentDebugInfo = debugInfo;
@@ -286,7 +286,7 @@ export function useNosePointer() {
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  }, [sensitivity]);
+  };
 
   // 初期化と開始
   useEffect(() => {
@@ -314,7 +314,7 @@ export function useNosePointer() {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, [initializeFaceLandmarker, startVideoStream]);
+  }, []);
 
   // フレーム処理の開始
   useEffect(() => {
