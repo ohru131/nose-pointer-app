@@ -108,9 +108,19 @@ export function usePointerFSM() {
           }
 
           // 通常ボタンにホバー開始
-          // 既に同じボタンをホバー中なら更新しない（activeButtonIdチェックだけでは不十分な場合があるため）
+          // 既に同じボタンをホバー中なら更新しない
           if (prev.state === 'hover' && prev.hoveredButtonId === foundButton!.id && prev.activeButtonId === foundButton!.id) {
             return prev;
+          }
+
+          // 猶予期間中に元のボタンに戻ってきた場合
+          if (prev.state === 'hover' && prev.hoveredButtonId === foundButton!.id && prev.activeButtonId === null) {
+             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+             return {
+                 ...prev,
+                 activeButtonId: foundButton!.id,
+                 // state, hoveredButtonId, hoverStartTimeは維持
+             };
           }
 
           return {
@@ -150,7 +160,7 @@ export function usePointerFSM() {
                return prev;
              }
 
-             // 猶予タイマーを開始（既存のhoverTimerRefを再利用または新規作成）
+             // 猶予タイマーを開始
              if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
              
              hoverTimerRef.current = setTimeout(() => {

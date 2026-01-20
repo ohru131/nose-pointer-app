@@ -151,18 +151,19 @@ export const UnifiedSelectionScreen: React.FC = () => {
     // 確定ボタンの位置管理
     useEffect(() => {
         if (fsmContext.state === 'hover' && fsmContext.hoveredButtonId) {
-            // まだ位置が決まっていない、または別のボタンに移った場合
+            // まだ位置が決まっていない、または別のボタンに移った場合のみ更新
             if (!confirmBtnPos || confirmBtnPos.id !== fsmContext.hoveredButtonId) {
                 const btnId = fsmContext.hoveredButtonId;
                 const confirmBtnWidth = 160;
                 const confirmBtnHeight = 80;
                 
                 let x, y;
+                // ポインタ位置が有効ならそこを基準にする
                 if (pointerPosition.isTracking) {
                     x = pointerPosition.x - (confirmBtnWidth / 2);
                     y = pointerPosition.y + 50; // ポインタの50px下
                 } else {
-                    // フォールバック
+                    // フォールバック：ボタンの下部中央
                     const el = buttonRefs.current[btnId];
                     if (el) {
                         const rect = el.getBoundingClientRect();
@@ -182,14 +183,14 @@ export const UnifiedSelectionScreen: React.FC = () => {
                 setConfirmBtnPos({ id: btnId, x, y });
             }
         } else if (fsmContext.state === 'idle') {
-            // ホバーが外れたらリセット（ただし、即時リセットすると猶予期間中に消えるため、FSM側で制御されているはずだが、
-            // ここではFSMの状態に従う。FSMがidleになったら消す。）
-            // ユーザー要望：ボタンから離れたら決定ボタン消えるので押せない -> 猶予期間が必要
-            // FSM側で猶予期間を設けるか、ここで遅延させるか。
-            // ここではFSMの状態に忠実に従い、FSM側で猶予期間を実装する方針とする。
-            setConfirmBtnPos(null);
+            // 完全なアイドル状態になったらリセット
+            if (confirmBtnPos) {
+                setConfirmBtnPos(null);
+            }
         }
-    }, [fsmContext.state, fsmContext.hoveredButtonId, pointerPosition.isTracking]); // pointerPosition.x/yは依存させない（固定するため）
+        // 依存配列から pointerPosition.isTracking を削除し、fsmContextの変化のみで発火させる
+        // これにより、トラッキング状態の変化による不要な再計算を防ぐ
+    }, [fsmContext.state, fsmContext.hoveredButtonId]);
 
     // 画面切り替え時やホバー状態変化時にボタンを更新
     useEffect(() => {
