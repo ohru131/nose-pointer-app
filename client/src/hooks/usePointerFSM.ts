@@ -31,7 +31,9 @@ export function usePointerFSM() {
     confirmedButtonId: null,
   });
 
-  const [buttonBounds, setButtonBounds] = useState<Map<string, ButtonBounds>>(new Map());
+  // buttonBoundsをRefに変更して再レンダリングと依存関係のループを防止
+  const buttonBoundsRef = useRef<Map<string, ButtonBounds>>(new Map());
+  
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastGestureTimeRef = useRef<number>(Date.now());
@@ -41,16 +43,12 @@ export function usePointerFSM() {
 
   // ボタン境界の登録
   const registerButton = useCallback((id: string, bounds: ButtonBounds) => {
-    setButtonBounds((prev) => new Map(prev).set(id, bounds));
+    buttonBoundsRef.current.set(id, bounds);
   }, []);
 
   // ボタン境界の解除
   const unregisterButton = useCallback((id: string) => {
-    setButtonBounds((prev) => {
-      const next = new Map(prev);
-      next.delete(id);
-      return next;
-    });
+    buttonBoundsRef.current.delete(id);
   }, []);
 
   // ポインタ位置がボタン内かどうかを判定
@@ -71,16 +69,9 @@ export function usePointerFSM() {
     (pointerX: number, pointerY: number) => {
       lastGestureTimeRef.current = Date.now();
 
-      // 状態が 'confirm' の場合は、リセットされるまで状態遷移しない (連打防止 & 緑色固定バグ修正)
-      // setFsmContextのコールバック内で現在のstateを確認する必要があるが、
-      // ここでは簡易的に参照できないため、setFsmContext内でガードするか、
-      // そもそも FSMContext を ref で持つ設計にするのが理想。
-      // ただし、今回はuseEffect側で state を監視して制御しているため、
-      // ここでブロックするよりも setFsmContext の update function 内で check する。
-
       // ボタン内判定
       let foundButton: ButtonBounds | null = null;
-      buttonBounds.forEach((bounds) => {
+      buttonBoundsRef.current.forEach((bounds) => {
         if (isPointerInButton(pointerX, pointerY, bounds)) {
           foundButton = bounds;
         }
@@ -182,7 +173,7 @@ export function usePointerFSM() {
         });
       }
     },
-    [buttonBounds, isPointerInButton]
+    [isPointerInButton]
   );
 
   // ジェスチャによる状態遷移
