@@ -6,6 +6,9 @@ interface CameraOverlayProps {
   pointerPosition: PointerPosition;
   isInitialized: boolean;
   isHovering?: boolean;
+  debugInfo?: Record<string, string>;
+  sensitivity?: number;
+  setSensitivity?: (value: number) => void;
 }
 
 /**

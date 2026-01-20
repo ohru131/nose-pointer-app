@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNosePointer } from '@/hooks/useNosePointer';
 import { usePointerFSM } from '@/hooks/usePointerFSM';
 import CameraOverlay from './CameraOverlay';
@@ -60,10 +60,10 @@ const SCREEN_CONFIG: Record<ViewType, { title?: string; icon?: string; buttons: 
 
 export const UnifiedSelectionScreen: React.FC = () => {
     // MediaPipe & Pointer Tracking (Persistent)
-    const { videoRef, pointerPosition, gestureState, isInitialized, error, resetGesture, debugInfo, sensitivity, setSensitivity } = useNosePointer();
+    const { videoRef, pointerPosition, isInitialized, error, debugInfo, sensitivity, setSensitivity } = useNosePointer();
 
     // FSM (Shared Logic)
-    const { fsmContext, registerButton, unregisterButton, updatePointerPosition, handleGesture, resetConfirm, resetCancel } = usePointerFSM();
+    const { fsmContext, registerButton, unregisterButton, updatePointerPosition, resetConfirm } = usePointerFSM();
 
     const logs = useLogCapture();
     const [currentView, setCurrentView] = useState<ViewType>('home');
@@ -72,9 +72,6 @@ export const UnifiedSelectionScreen: React.FC = () => {
     const [showInitInfo, setShowInitInfo] = useState(true);
     const [initStartTime] = useState(Date.now());
     
-    // 確定ボタンの位置を固定するためのState
-    const [confirmBtnPos, setConfirmBtnPos] = useState<{ id: string, x: number, y: number } | null>(null);
-
     // ボタンRef管理
     const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
 
@@ -93,114 +90,17 @@ export const UnifiedSelectionScreen: React.FC = () => {
                     height: rect.height,
                     id,
                 });
-
-                // ホバー中のボタンに対して確定ボタンを登録
-                if (fsmContext.state === 'hover' && fsmContext.hoveredButtonId === id) {
-                    const confirmBtnId = `${id}-confirm`;
-                    const confirmBtnWidth = 160;
-                    const confirmBtnHeight = 80;
-                    
-                    // 既に位置が決まっている場合はそれを使う、なければポインタ位置から計算
-                    let confirmBtnX, confirmBtnY;
-                    
-                    if (confirmBtnPos && confirmBtnPos.id === id) {
-                        confirmBtnX = confirmBtnPos.x;
-                        confirmBtnY = confirmBtnPos.y;
-                    } else {
-                        // 初回表示時：ポインタの少し下に表示
-                        // ポインタ位置は useNosePointer から取得済み
-                        if (pointerPosition.isTracking) {
-                            confirmBtnX = pointerPosition.x - (confirmBtnWidth / 2);
-                            confirmBtnY = pointerPosition.y + 50; // ポインタの50px下
-                        } else {
-                            // フォールバック：ボタンの下部中央
-                            confirmBtnX = rect.left + (rect.width / 2) - (confirmBtnWidth / 2);
-                            confirmBtnY = rect.bottom + 20;
-                        }
-                        
-                        // 画面外にはみ出さないように調整
-                        if (confirmBtnX < 0) confirmBtnX = 10;
-                        if (confirmBtnX + confirmBtnWidth > window.innerWidth) confirmBtnX = window.innerWidth - confirmBtnWidth - 10;
-                        if (confirmBtnY + confirmBtnHeight > window.innerHeight) confirmBtnY = window.innerHeight - confirmBtnHeight - 10;
-
-                        // 位置を保存（次回以降固定）
-                        // レンダリングサイクル中なので、setStateはuseEffectで行うか、ここでの計算値をRefに保存する等の工夫が必要だが、
-                        // updateButtonsはuseEffect/setIntervalから呼ばれるため、ここでsetStateすると無限ループのリスクがある。
-                        // そのため、updateButtons内ではregisterButtonのみ行い、位置決定ロジックは分離すべき。
-                        // しかし、registerButtonに渡す座標と描画座標を一致させる必要がある。
-                        
-                        // 暫定対応：ここで計算した値を使いつつ、useEffectで位置を固定する
-                    }
-
-                    registerButton(confirmBtnId, {
-                        x: confirmBtnX,
-                        y: confirmBtnY,
-                        width: confirmBtnWidth,
-                        height: confirmBtnHeight,
-                        id: confirmBtnId,
-                        isConfirmButton: true, // 識別用フラグ
-                        parentId: id
-                    });
-                }
             } else {
                 unregisterButton(id);
             }
         });
     };
 
-    // 確定ボタンの位置管理
+    // 画面切り替え時やリサイズ時にボタンを更新
     useEffect(() => {
-        if (fsmContext.state === 'hover' && fsmContext.hoveredButtonId) {
-            // まだ位置が決まっていない、または別のボタンに移った場合のみ更新
-            if (!confirmBtnPos || confirmBtnPos.id !== fsmContext.hoveredButtonId) {
-                const btnId = fsmContext.hoveredButtonId;
-                const confirmBtnWidth = 160;
-                const confirmBtnHeight = 80;
-                
-                let x, y;
-                // ポインタ位置が有効ならそこを基準にする
-                if (pointerPosition.isTracking) {
-                    x = pointerPosition.x - (confirmBtnWidth / 2);
-                    y = pointerPosition.y + 50; // ポインタの50px下
-                } else {
-                    // フォールバック：ボタンの下部中央
-                    const el = buttonRefs.current[btnId];
-                    if (el) {
-                        const rect = el.getBoundingClientRect();
-                        x = rect.left + (rect.width / 2) - (confirmBtnWidth / 2);
-                        y = rect.bottom + 20;
-                    } else {
-                        x = window.innerWidth / 2 - confirmBtnWidth / 2;
-                        y = window.innerHeight / 2;
-                    }
-                }
-
-                // 画面外補正
-                if (x < 0) x = 10;
-                if (x + confirmBtnWidth > window.innerWidth) x = window.innerWidth - confirmBtnWidth - 10;
-                if (y + confirmBtnHeight > window.innerHeight) y = window.innerHeight - confirmBtnHeight - 10;
-
-                setConfirmBtnPos({ id: btnId, x, y });
-            }
-        } else if (fsmContext.state === 'idle') {
-            // 完全なアイドル状態になったらリセット
-            if (confirmBtnPos) {
-                setConfirmBtnPos(null);
-            }
-        }
-        // 依存配列から pointerPosition.isTracking を削除し、fsmContextの変化のみで発火させる
-        // これにより、トラッキング状態の変化による不要な再計算を防ぐ
-    }, [fsmContext.state, fsmContext.hoveredButtonId]);
-
-    // 画面切り替え時やホバー状態変化時にボタンを更新
-    useEffect(() => {
-        // ボタンRefをリセット（DOMが再描画されるため）
-        // buttonRefs.current = {}; // ここでリセットするとホバー時に消えてしまうので削除
-
-        // 少し待ってから登録（レンダリング待ち）
         const timer = setTimeout(updateButtons, 50);
         return () => clearTimeout(timer);
-    }, [currentView, fsmContext.state, fsmContext.hoveredButtonId, confirmBtnPos]); // confirmBtnPosが変わったら再登録
+    }, [currentView]);
 
     // 定期的な位置補正 (Resizeなど)
     useEffect(() => {
@@ -218,15 +118,6 @@ export const UnifiedSelectionScreen: React.FC = () => {
             updatePointerPosition(pointerPosition.x, pointerPosition.y);
         }
     }, [pointerPosition, isInitialized, updatePointerPosition]);
-
-    // ジェスチャ処理
-    useEffect(() => {
-        if (gestureState.direction !== 'none') {
-            handleGesture(gestureState.direction, gestureState.distance);
-        }
-        // gestureState全体ではなく、directionのみを監視してループを防止
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [gestureState.direction, handleGesture]);
 
     // アクション実行
     useEffect(() => {
@@ -248,227 +139,177 @@ export const UnifiedSelectionScreen: React.FC = () => {
                     } else if (type === 'navigate') {
                         setCurrentView(payload as ViewType);
                     } else if (type === 'say') {
-                        console.log('Action Triggered:', payload);
                         const utterance = new SpeechSynthesisUtterance(payload);
                         utterance.lang = 'ja-JP';
-                        speechSynthesis.speak(utterance);
+                        window.speechSynthesis.speak(utterance);
                     }
                 }
                 resetConfirm();
                 setConfirmedAction(null);
-            }, 600);
+            }, 500); // 0.5秒後に実行（視覚フィードバック用）
 
             return () => clearTimeout(timer);
         }
-    }, [fsmContext.state, fsmContext.confirmedButtonId, config, resetConfirm]);
+    }, [fsmContext.state, fsmContext.confirmedButtonId, config.buttons, resetConfirm]);
 
-    // Init Info Timer
+    // 初期化メッセージの自動消去
     useEffect(() => {
-        if (isInitialized && !error) {
+        if (isInitialized && showInitInfo) {
             const timer = setTimeout(() => setShowInitInfo(false), 3000);
             return () => clearTimeout(timer);
         }
-    }, [isInitialized, error]);
-
-
-    // --- Rendering ---
-
-    if (error) {
-        return (
-            <div style={{ padding: '20px', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
-                <h2 style={{ color: '#dc2626', fontSize: '24px', marginBottom: '16px' }}>⚠️ エラーが発生しました</h2>
-                <p style={{ color: '#666', marginBottom: '12px', maxWidth: '600px', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontSize: '14px' }}>{error}</p>
-                <p style={{ color: '#666', fontSize: '14px', maxWidth: '600px', marginBottom: '20px' }}>
-                    ブラウザの設定でカメラへのアクセスを許可してください。<br />
-                    ページをリロードして再度試してください。
-                </p>
-
-                <div style={{ width: '100%', maxWidth: '800px', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'left' }}>📊 デバッグ情報:</h3>
-                    <div style={{ backgroundColor: '#f0f0f0', padding: '12px', borderRadius: '8px', textAlign: 'left', fontSize: '12px', color: '#333', fontFamily: 'monospace' }}>
-                        {Object.entries(debugInfo).map(([key, value]) => (
-                            <div key={key} style={{ marginBottom: '4px' }}>{key}: {String(value)}</div>
-                        ))}
-                    </div>
-                </div>
-
-                <div style={{ width: '100%', maxWidth: '800px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'left' }}>📋 ログ:</h3>
-                    <LogDisplay logs={logs} maxHeight={300} />
-                </div>
-            </div>
-        );
-    }
-
-    if (!isInitialized || showInitInfo) {
-        const elapsedTime = Date.now() - initStartTime;
-        return (
-            <div style={{ padding: '20px', textAlign: 'center', minHeight: '100vh', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', backgroundColor: '#f8fafc' }}>
-                <h2 style={{ fontSize: '28px', marginBottom: '12px', fontWeight: 'bold' }}>⏳ 初期化中...</h2>
-                <p style={{ color: '#666', marginBottom: '8px', fontSize: '16px' }}>MediaPipeを読み込んでいます</p>
-                <div style={{ marginBottom: '20px', fontSize: '12px', color: '#999' }}>
-                    初回起動時は数秒かかる場合があります
-                    {isInitialized && <div>✅ 初期化完了（{elapsedTime}ms）</div>}
-                </div>
-
-                <div style={{ width: '100%', maxWidth: '800px', marginBottom: '20px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'left' }}>📊 初期化状況:</h3>
-                    <div style={{ backgroundColor: '#f0f0f0', padding: '12px', borderRadius: '8px', textAlign: 'left', fontSize: '12px', color: '#333', fontFamily: 'monospace' }}>
-                        {Object.entries(debugInfo).map(([key, value]) => (
-                            <div key={key} style={{ marginBottom: '4px' }}>
-                                <span style={{ color: '#0066cc', fontWeight: 'bold' }}>{key}:</span> {String(value)}
-                            </div>
-                        ))}
-                    </div>
-                </div>
-
-                <div style={{ width: '100%', maxWidth: '800px' }}>
-                    <h3 style={{ fontSize: '14px', fontWeight: 'bold', marginBottom: '8px', textAlign: 'left' }}>📋 ログ:</h3>
-                    <LogDisplay logs={logs} maxHeight={300} />
-                </div>
-            </div>
-        );
-    }
+    }, [isInitialized, showInitInfo]);
 
     return (
-        <div style={{
-            minHeight: '100vh',
-            display: 'flex',
-            flexDirection: 'column',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: '#f8fafc',
-            padding: '20px',
-            position: 'relative',
-        }}>
-            <CameraOverlay
-                videoRef={videoRef}
+        <div className="relative w-full h-screen bg-slate-50 overflow-hidden font-sans select-none">
+            {/* カメラ映像レイヤー */}
+            <CameraOverlay 
+                videoRef={videoRef} 
+                isInitialized={isInitialized} 
                 pointerPosition={pointerPosition}
-                isInitialized={isInitialized}
-                isHovering={fsmContext.state === 'hover'}
+                debugInfo={debugInfo}
+                sensitivity={sensitivity}
+                setSensitivity={setSensitivity}
             />
-            {clickFlash && <div style={{ position: 'fixed', inset: 0, background: 'rgba(255,255,255,0.4)', zIndex: 9999, pointerEvents: 'none' }} />}
 
-            {/* 感度調整スライダー */}
-            <div style={{ position: 'fixed', top: '20px', left: '20px', zIndex: 50, backgroundColor: 'rgba(255, 255, 255, 0.9)', padding: '16px', borderRadius: '12px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 'bold', color: '#334155' }}>
-                    🖱️ 感度調整: {sensitivity.toFixed(1)}
-                </label>
-                <input
-                    type="range"
-                    min="1.0"
-                    max="10.0"
-                    step="0.5"
-                    value={sensitivity}
-                    onChange={(e) => setSensitivity(parseFloat(e.target.value))}
-                    style={{ width: '200px', cursor: 'pointer' }}
-                />
+            {/* UIレイヤー */}
+            <div className="absolute inset-0 z-10 flex flex-col p-4 pointer-events-none">
+                {/* ヘッダー */}
+                <div className="flex justify-between items-center mb-4 pointer-events-auto">
+                    <div className="bg-white/90 backdrop-blur px-6 py-3 rounded-2xl shadow-sm border border-slate-200">
+                        <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
+                            {config.icon && <span className="text-3xl">{config.icon}</span>}
+                            {config.title || 'メニュー'}
+                        </h1>
+                    </div>
+                    
+                    {/* 状態インジケーター */}
+                    <div className={`px-4 py-2 rounded-full text-sm font-bold transition-colors duration-300 ${
+                        fsmContext.state === 'confirm' ? 'bg-blue-500 text-white' :
+                        fsmContext.state === 'hover' ? 'bg-green-500 text-white' :
+                        'bg-slate-200 text-slate-500'
+                    }`}>
+                        {fsmContext.state === 'confirm' ? '決定！' :
+                         fsmContext.state === 'hover' ? '選択中...' : '待機中'}
+                    </div>
+                </div>
+
+                {/* メインコンテンツエリア */}
+                <div className="flex-1 grid grid-cols-12 gap-6 p-2">
+                    {config.buttons.map((btn) => {
+                        const isHovered = fsmContext.activeButtonId === btn.id;
+                        const isConfirmed = confirmedAction === btn.id;
+                        
+                        // スタイル分岐
+                        const isHero = btn.styleType === 'hero';
+                        const colSpan = isHero ? 'col-span-4' : 'col-span-4'; // グリッドレイアウト調整
+                        
+                        // プログレスバーの計算
+                        const progress = isHovered ? fsmContext.progress : 0;
+
+                        return (
+                            <div key={btn.id} className={`${colSpan} relative group pointer-events-auto`}>
+                                <button
+                                    ref={(el) => { buttonRefs.current[btn.id] = el; }}
+                                    className={`
+                                        w-full h-full rounded-3xl border-4 transition-all duration-200 relative overflow-hidden
+                                        flex flex-col items-center justify-center gap-4
+                                        ${isConfirmed ? 'scale-95 border-blue-500 bg-blue-50' : 
+                                          isHovered ? 'scale-105 border-green-500 bg-green-50 shadow-xl z-20' : 
+                                          'border-slate-200 bg-white shadow-md hover:border-slate-300'}
+                                    `}
+                                >
+                                    {/* 背景プログレス（下から上に溜まる） */}
+                                    <div 
+                                        className="absolute bottom-0 left-0 w-full bg-green-200/50 transition-all duration-75 ease-linear"
+                                        style={{ height: `${progress}%` }}
+                                    />
+
+                                    {/* アイコン */}
+                                    {btn.icon && (
+                                        <span className={`text-6xl transition-transform duration-300 ${isHovered ? 'scale-110' : ''}`}>
+                                            {btn.icon}
+                                        </span>
+                                    )}
+                                    
+                                    {/* ラベル */}
+                                    <span className={`text-3xl font-bold ${isHovered ? 'text-green-800' : 'text-slate-700'}`}>
+                                        {btn.label}
+                                    </span>
+
+                                    {/* ガイドメッセージ（ホバー時のみ） */}
+                                    {isHovered && (
+                                        <span className="absolute bottom-4 text-sm font-bold text-green-600 animate-pulse">
+                                            そのまま待って決定
+                                        </span>
+                                    )}
+                                </button>
+                                
+                                {/* 円形プログレスインジケーター（ボタン右上に表示） */}
+                                {isHovered && (
+                                    <div className="absolute -top-4 -right-4 w-16 h-16 bg-white rounded-full shadow-lg flex items-center justify-center z-30">
+                                        <svg className="w-12 h-12 transform -rotate-90">
+                                            <circle
+                                                cx="24"
+                                                cy="24"
+                                                r="20"
+                                                stroke="#e2e8f0"
+                                                strokeWidth="4"
+                                                fill="none"
+                                            />
+                                            <circle
+                                                cx="24"
+                                                cy="24"
+                                                r="20"
+                                                stroke="#22c55e"
+                                                strokeWidth="4"
+                                                fill="none"
+                                                strokeDasharray={126}
+                                                strokeDashoffset={126 - (126 * progress) / 100}
+                                                className="transition-all duration-75 ease-linear"
+                                            />
+                                        </svg>
+                                    </div>
+                                )}
+                            </div>
+                        );
+                    })}
+                </div>
             </div>
 
-            {/* Header / Title (Only for sub-pages) */}
-            {currentView !== 'home' && (
-                <div style={{ marginBottom: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
-                    <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#1e293b' }}>
-                        {config.icon} {config.title}
-                    </h1>
-                    <p style={{ color: '#64748b' }}>上を向くと戻ります</p>
+            {/* 全画面フラッシュ（決定時） */}
+            {clickFlash && (
+                <div className="absolute inset-0 bg-white/50 z-50 animate-ping pointer-events-none" />
+            )}
+
+            {/* 初期化ローディング */}
+            {!isInitialized && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-white">
+                    <div className="text-6xl mb-8 animate-bounce">⏳</div>
+                    <h2 className="text-3xl font-bold text-slate-800 mb-4">初期化中...</h2>
+                    <p className="text-slate-500">MediaPipeを読み込んでいます</p>
+                    <p className="text-slate-400 text-sm mt-2">初回起動時は数秒かかる場合があります</p>
+                    {/* ログ表示（デバッグ用） */}
+                    <div className="mt-8 w-2/3 max-h-48 overflow-y-auto bg-slate-100 p-4 rounded text-xs font-mono text-slate-600">
+                        {logs.map((log, i) => (
+                            <div key={i}>{log}</div>
+                        ))}
+                    </div>
                 </div>
             )}
 
-            {/* Button Container */}
-            <div style={{
-                display: currentView === 'home' ? 'flex' : 'grid',
-                gridTemplateColumns: currentView === 'home' ? 'none' : 'repeat(2, 1fr)', // Grid for items
-                flexDirection: 'row', // for home
-                gap: '30px',
-                width: '100%',
-                maxWidth: currentView === 'home' ? '100%' : '800px',
-                height: currentView === 'home' ? '80vh' : 'auto',
-                padding: currentView === 'home' ? '40px' : '0',
-                boxSizing: 'border-box',
-                position: 'relative',
-                zIndex: 1,
-            }}>
-                {config.buttons.map((btn) => {
-                    const isActive = fsmContext.activeButtonId === btn.id;
-                    const isHover = fsmContext.state === 'hover';
-                    const isConfirmed = confirmedAction === btn.id;
-
-                    return (
-                        <div key={btn.id} style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-                            <button
-                                ref={el => { buttonRefs.current[btn.id] = el; }}
-                                style={{
-                                    flex: btn.styleType === 'hero' ? 1 : 'none',
-                                    height: btn.styleType === 'hero' ? '70vh' : '180px',
-                                    fontSize: btn.styleType === 'hero' ? '64px' : '32px',
-                                    fontWeight: '800',
-                                    border: isActive && isHover ? '12px solid #fbbf24' : '4px solid transparent',
-                                    borderRadius: btn.styleType === 'hero' ? '40px' : '24px',
-                                    cursor: 'pointer',
-                                    transition: 'all 0.15s ease-out',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    gap: btn.styleType === 'hero' ? '32px' : '16px',
-                                    backgroundColor: isActive && isHover ? 'rgb(37, 99, 235)' : isConfirmed ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
-                                    color: isActive && isHover ? 'white' : 'rgb(30, 58, 138)',
-                                    transform: isActive && isHover ? 'scale(1.05) translateY(-10px)' : isConfirmed ? 'scale(0.95)' : 'scale(1)',
-                                    boxShadow: isActive && isHover ? '0 0 0 8px rgba(251, 191, 36, 0.5), 0 25px 50px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.1)',
-                                }}
-                            >
-                                {btn.icon && <span style={{ fontSize: btn.styleType === 'hero' ? '140px' : '48px' }}>{btn.icon}</span>}
-                                <span>{btn.label}</span>
-                            </button>
-                            {/* 確定ボタン（エンターキー）の表示 */}
-                            {isActive && isHover && confirmBtnPos && confirmBtnPos.id === btn.id && (
-                                <div style={{
-                                    position: 'fixed', // absoluteからfixedに変更（画面全体座標系）
-                                    left: confirmBtnPos.x,
-                                    top: confirmBtnPos.y,
-                                    width: '160px',
-                                    height: '80px',
-                                    backgroundColor: '#f97316', // Orange
-                                    color: 'white',
-                                    borderRadius: '16px',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    fontSize: '24px',
-                                    fontWeight: 'bold',
-                                    boxShadow: '0 8px 16px rgba(249, 115, 22, 0.4)',
-                                    zIndex: 100,
-                                    border: '4px solid white',
-                                    pointerEvents: 'none' // 実際の判定はFSMで行うため、ここでは表示のみ
-                                }}>
-                                    決定 ↵
-                                </div>
-                            )}
-                        </div>
-                    );
-                })}
-            </div>
-
-            {/* Debug Info */}
-            {process.env.NODE_ENV === 'development' && (
-                <div style={{
-                    position: 'fixed',
-                    top: '10px',
-                    right: '10px',
-                    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-                    color: 'white',
-                    padding: '10px 15px',
-                    borderRadius: '6px',
-                    fontSize: '12px',
-                    fontFamily: 'monospace',
-                    maxWidth: '300px',
-                    zIndex: 9998,
-                }}>
-                    <div>State: {fsmContext.state}</div>
-                    <div>Active: {fsmContext.activeButtonId}</div>
-                    <div>Gesture: {gestureState.direction}</div>
-                    <div>View: {currentView}</div>
+            {/* エラー表示 */}
+            {error && (
+                <div className="absolute inset-0 z-50 flex flex-col items-center justify-center bg-red-50 p-8 text-center">
+                    <div className="text-6xl mb-4">⚠️</div>
+                    <h2 className="text-2xl font-bold text-red-600 mb-2">エラーが発生しました</h2>
+                    <p className="text-red-800 mb-6">{error}</p>
+                    <button 
+                        onClick={() => window.location.reload()}
+                        className="px-6 py-3 bg-red-600 text-white rounded-full font-bold hover:bg-red-700 transition-colors"
+                    >
+                        再読み込み
+                    </button>
                 </div>
             )}
         </div>

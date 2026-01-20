@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-export type FSMState = 'idle' | 'hover' | 'confirm' | 'cancel';
+export type FSMState = 'idle' | 'hover' | 'confirm';
 
 export interface ButtonBounds {
   x: number;
@@ -8,38 +8,31 @@ export interface ButtonBounds {
   width: number;
   height: number;
   id: string;
-  isConfirmButton?: boolean; // 追加: 確定ボタン識別用
-  parentId?: string; // 追加: 親ボタンID
 }
 
 export interface FSMContext {
   state: FSMState;
   activeButtonId: string | null;
-  hoveredButtonId: string | null; // 追加: ホバー中のボタンID（activeButtonIdと区別）
   hoverStartTime: number | null;
   confirmedButtonId: string | null;
+  progress: number; // 0 to 100
 }
 
-const HOVER_THRESHOLD_MS = 300; // ホバー状態から確定までの静止時間
+const DWELL_TIME_MS = 1500; // 1.5秒滞留で決定
 
 export function usePointerFSM() {
   const [fsmContext, setFsmContext] = useState<FSMContext>({
     state: 'idle',
     activeButtonId: null,
-    hoveredButtonId: null,
     hoverStartTime: null,
     confirmedButtonId: null,
+    progress: 0,
   });
 
-  // buttonBoundsをRefに変更して再レンダリングと依存関係のループを防止
   const buttonBoundsRef = useRef<Map<string, ButtonBounds>>(new Map());
-  
-  const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
-  const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastGestureTimeRef = useRef<number>(Date.now());
-
-  // 直近のホバー情報を記録（グレース期間用）
-  const lastHoveredRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
 
   // ボタン境界の登録
   const registerButton = useCallback((id: string, bounds: ButtonBounds) => {
@@ -64,6 +57,18 @@ export function usePointerFSM() {
     []
   );
 
+  // タイマーとプログレスのクリア
+  const clearTimers = useCallback(() => {
+    if (dwellTimerRef.current) {
+      clearTimeout(dwellTimerRef.current);
+      dwellTimerRef.current = null;
+    }
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  }, []);
+
   // ポインタ位置の更新と状態遷移
   const updatePointerPosition = useCallback(
     (pointerX: number, pointerY: number) => {
@@ -75,206 +80,110 @@ export function usePointerFSM() {
         if (isPointerInButton(pointerX, pointerY, bounds)) {
           foundButton = bounds;
         }
-      })
+      });
 
       if (foundButton) {
-        // ボタンにホバー中
+        const btnId = (foundButton as ButtonBounds).id;
+
         setFsmContext((prev) => {
-          if (prev.state === 'confirm') return prev; // 確定中は無視
+          // 既に確定済みなら何もしない（リセット待ち）
+          if (prev.state === 'confirm') return prev;
 
-          if (prev.activeButtonId === foundButton!.id) {
-            return prev; // 同じボタンでホバー継続
-          }
-
-          // 新しいボタンにホバー開始
-          if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-
-          // ホバー状態に遷移
-          const hoverStartTime = Date.now();
-
-          // 確定ボタンに触れた場合
-          if (foundButton!.isConfirmButton) {
-            // 既に確定状態なら更新しない
-            if ((prev.state as string) === 'confirm' && prev.confirmedButtonId === foundButton!.parentId) {
-              return prev;
-            }
-            return {
-              ...prev,
-              state: 'confirm',
-              confirmedButtonId: foundButton!.parentId || null, // 親ボタンIDを確定IDとする
-              activeButtonId: foundButton!.id,
-              hoveredButtonId: foundButton!.parentId || null,
-            };
-          }
-
-          // 通常ボタンにホバー開始
-          // 既に同じボタンをホバー中なら更新しない
-          if (prev.state === 'hover' && prev.hoveredButtonId === foundButton!.id && prev.activeButtonId === foundButton!.id) {
+          // 同じボタンにホバー継続中
+          if (prev.activeButtonId === btnId) {
             return prev;
           }
 
-          // 猶予期間中に元のボタンに戻ってきた場合
-          if (prev.state === 'hover' && prev.hoveredButtonId === foundButton!.id && prev.activeButtonId === null) {
-             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-             return {
-                 ...prev,
-                 activeButtonId: foundButton!.id,
-                 // state, hoveredButtonId, hoverStartTimeは維持
-             };
-          }
+          // 新しいボタンにホバー開始（または別のボタンから移動）
+          clearTimers();
+
+          const startTime = Date.now();
+
+          // Dwell Timer開始
+          dwellTimerRef.current = setTimeout(() => {
+            setFsmContext((current) => {
+              if (current.activeButtonId === btnId) {
+                clearTimers();
+                return {
+                  ...current,
+                  state: 'confirm',
+                  confirmedButtonId: btnId,
+                  progress: 100,
+                };
+              }
+              return current;
+            });
+          }, DWELL_TIME_MS);
+
+          // プログレス更新用インターバル
+          progressIntervalRef.current = setInterval(() => {
+            setFsmContext((current) => {
+              if (current.activeButtonId !== btnId || current.state === 'confirm') {
+                return current;
+              }
+              const elapsed = Date.now() - startTime;
+              const newProgress = Math.min(100, (elapsed / DWELL_TIME_MS) * 100);
+              return {
+                ...current,
+                progress: newProgress,
+              };
+            });
+          }, 50); // 50msごとに更新
 
           return {
-            ...prev,
             state: 'hover',
-            activeButtonId: foundButton!.id,
-            hoveredButtonId: foundButton!.id, // ホバーIDを更新
-            hoverStartTime,
-            confirmedButtonId: null
+            activeButtonId: btnId,
+            hoverStartTime: startTime,
+            confirmedButtonId: null,
+            progress: 0,
           };
         });
       } else {
         // ボタン外
         setFsmContext((prev) => {
-          if (prev.state === 'confirm') return prev; // 確定中は無視
-
-          if (prev.state !== 'idle') {
-            if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-            // ホバー終了時間を記録
-            lastHoveredRef.current = { id: prev.activeButtonId, time: Date.now() };
+          if (prev.state === 'idle' && prev.activeButtonId === null) {
+            return prev;
           }
-          // ホバーから外れた場合の処理（Grace Periodの実装）
-          // 確定ボタンが表示されている場合、親ボタンから外れても少しの間はhoveredButtonIdを維持する
           
-          // 既に猶予期間中なら何もしない（タイマーはuseEffectで管理するか、ここでセットするか）
-          // ここではシンプルに、stateはidleにするが、hoveredButtonIdは即座に消さないアプローチを試みる。
-          // しかし、stateがidleになるとUnifiedSelectionScreen側で確定ボタンが消える実装になっている。
-          // したがって、stateを'hover'のまま維持しつつ、activeButtonIdだけnullにするのが良いかもしれない。
-          // あるいは、新しいstate 'grace' を導入する。
-          
-          // 今回は state: 'hover' を維持し、activeButtonIdをnullにする。
-          // そして、一定時間後に本当に何もなければidleにするタイマーをセットする。
-          
-          if (prev.state === 'hover' && prev.hoveredButtonId) {
-             // 既にactiveButtonIdがnullなら（猶予期間中なら）、stateを更新しない
-             if (prev.activeButtonId === null) {
-               return prev;
-             }
+          // 確定状態なら維持（リセット待ち）
+          if (prev.state === 'confirm') return prev;
 
-             // 猶予タイマーを開始
-             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-             
-             hoverTimerRef.current = setTimeout(() => {
-                 setFsmContext(current => {
-                     // まだボタン外ならリセット
-                     if (current.activeButtonId === null) {
-                         return {
-                             ...current,
-                             state: 'idle',
-                             hoveredButtonId: null,
-                             hoverStartTime: null,
-                             confirmedButtonId: null
-                         };
-                     }
-                     return current;
-                 });
-             }, 1000); // 1秒の猶予
-             
-             return {
-                 ...prev,
-                 activeButtonId: null, // ボタン上ではない
-                 // state: 'hover', // stateはhoverのまま（確定ボタンを表示し続けるため）
-                 // hoveredButtonId: prev.hoveredButtonId // 維持
-             };
-          }
-
+          clearTimers();
           return {
-            ...prev,
             state: 'idle',
             activeButtonId: null,
-            hoveredButtonId: null,
             hoverStartTime: null,
+            confirmedButtonId: null,
+            progress: 0,
           };
         });
       }
     },
-    [isPointerInButton]
-  );
-
-  // ジェスチャによる状態遷移
-  const handleGesture = useCallback(
-    (direction: 'up' | 'down' | 'none', distance: number) => {
-      if (direction === 'none') return;
-
-      setFsmContext((prev) => {
-        if (direction === 'down') {
-          // ジェスチャ確定は廃止されたため削除
-          // if (prev.state === 'hover' && prev.activeButtonId) { ... }
-          return prev;
-
-          // ジェスチャ確定は廃止されたため削除
-          // if (prev.state === 'idle' && lastHoveredRef.current.id ... ) { ... }
-          return prev;
-        }
-
-        // 上方向ジェスチャも廃止
-        // if (direction === 'up') { ... }
-        return prev;
-
-        return prev;
-      });
-    },
-    []
+    [isPointerInButton, clearTimers]
   );
 
   // 確定状態をリセット
   const resetConfirm = useCallback(() => {
-    setFsmContext((prev) => ({
-      ...prev,
+    clearTimers();
+    setFsmContext({
       state: 'idle',
+      activeButtonId: null,
+      hoverStartTime: null,
       confirmedButtonId: null,
-    }));
-  }, []);
+      progress: 0,
+    });
+  }, [clearTimers]);
 
-  // キャンセル状態をリセット
-  const resetCancel = useCallback(() => {
-    setFsmContext((prev) => ({
-      ...prev,
-      state: 'idle',
-    }));
-  }, []);
-
-  // 無操作時の自動復帰（10～15秒）
+  // クリーンアップ
   useEffect(() => {
-    const checkInactivity = () => {
-      const now = Date.now();
-      const inactiveTime = now - lastGestureTimeRef.current;
-
-      if (inactiveTime > 12000) {
-        // 12秒無操作
-        setFsmContext({
-          state: 'idle',
-          activeButtonId: null,
-          hoveredButtonId: null,
-          hoverStartTime: null,
-          confirmedButtonId: null,
-        });
-      }
-    };
-
-    inactivityTimerRef.current = setInterval(checkInactivity, 1000);
-
-    return () => {
-      if (inactivityTimerRef.current) clearInterval(inactivityTimerRef.current);
-    };
-  }, []);
+    return () => clearTimers();
+  }, [clearTimers]);
 
   return {
     fsmContext,
     registerButton,
     unregisterButton,
     updatePointerPosition,
-    handleGesture,
     resetConfirm,
-    resetCancel,
   };
 }
