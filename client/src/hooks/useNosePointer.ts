@@ -208,6 +208,9 @@ export function useNosePointer() {
 
   // フレーム処理（鼻トラッキング）
   const processFrame = useCallback(() => {
+    // 現在の状態を参照するためのRef
+    const currentPointerPosition = pointerPosition;
+    const currentDebugInfo = debugInfo;
     if (!videoRef.current || !faceLandmarkerRef.current) {
       animationFrameRef.current = requestAnimationFrame(processFrame);
       return;
@@ -268,18 +271,11 @@ export function useNosePointer() {
             isTracking: true,
           });
 
-          setDebugInfo((prev) => ({
-            ...prev,
-            tracking: 'Face Detected',
-            confidence: `${(confidence * 100).toFixed(0)}%`,
-          }));
-
           // ジェスチャ検出
           detectGesture({ x: smoothedX, y: smoothedY }, screenHeight);
         }
       } else {
         setPointerPosition((prev) => ({ ...prev, isTracking: false }));
-        setDebugInfo((prev) => ({ ...prev, tracking: 'No Face' }));
       }
     } catch (err) {
       console.error('❌ Frame processing error:', err);
@@ -290,7 +286,7 @@ export function useNosePointer() {
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  }, [sensitivity, setPointerPosition, setDebugInfo]);
+  }, [sensitivity]);
 
   // 初期化と開始
   useEffect(() => {
@@ -337,7 +333,7 @@ export function useNosePointer() {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isInitialized, processFrame]);
+  }, [isInitialized]);
 
   // ジェスチャのリセット
   const resetGesture = useCallback(() => {
