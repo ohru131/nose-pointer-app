@@ -10,6 +10,7 @@ export function useLogCapture() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const logsRef = useRef<LogEntry[]>([]);
   const isMountedRef = useRef(true);
+  const isUpdatingRef = useRef(false);
 
   useEffect(() => {
     isMountedRef.current = true;
@@ -20,14 +21,19 @@ export function useLogCapture() {
     const originalError = console.error;
     const originalInfo = console.info;
 
-    console.log = (...args) => {
+    const addLog = (level: 'log' | 'warn' | 'error' | 'info', args: any[]) => {
+      // 無限ループ防止：既に更新中なら処理をスキップ
+      if (isUpdatingRef.current) {
+        return;
+      }
+
       const message = args.map(arg => 
         typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
       ).join(' ');
       
       const entry: LogEntry = {
         timestamp: Date.now(),
-        level: 'log',
+        level,
         message,
       };
       
@@ -35,72 +41,34 @@ export function useLogCapture() {
       if (logsRef.current.length > 50) {
         logsRef.current.shift();
       }
+      
       if (isMountedRef.current) {
+        isUpdatingRef.current = true;
         setLogs([...logsRef.current]);
+        // 次のレンダリング後に更新フラグをリセット
+        setTimeout(() => {
+          isUpdatingRef.current = false;
+        }, 0);
       }
+    };
+
+    console.log = (...args) => {
+      addLog('log', args);
       originalLog(...args);
     };
 
     console.warn = (...args) => {
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-      ).join(' ');
-      
-      const entry: LogEntry = {
-        timestamp: Date.now(),
-        level: 'warn',
-        message,
-      };
-      
-      logsRef.current.push(entry);
-      if (logsRef.current.length > 50) {
-        logsRef.current.shift();
-      }
-      if (isMountedRef.current) {
-        setLogs([...logsRef.current]);
-      }
+      addLog('warn', args);
       originalWarn(...args);
     };
 
     console.error = (...args) => {
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-      ).join(' ');
-      
-      const entry: LogEntry = {
-        timestamp: Date.now(),
-        level: 'error',
-        message,
-      };
-      
-      logsRef.current.push(entry);
-      if (logsRef.current.length > 50) {
-        logsRef.current.shift();
-      }
-      if (isMountedRef.current) {
-        setLogs([...logsRef.current]);
-      }
+      addLog('error', args);
       originalError(...args);
     };
 
     console.info = (...args) => {
-      const message = args.map(arg => 
-        typeof arg === 'object' ? JSON.stringify(arg) : String(arg)
-      ).join(' ');
-      
-      const entry: LogEntry = {
-        timestamp: Date.now(),
-        level: 'info',
-        message,
-      };
-      
-      logsRef.current.push(entry);
-      if (logsRef.current.length > 50) {
-        logsRef.current.shift();
-      }
-      if (isMountedRef.current) {
-        setLogs([...logsRef.current]);
-      }
+      addLog('info', args);
       originalInfo(...args);
     };
 
