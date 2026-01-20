@@ -90,21 +90,41 @@ export const UnifiedSelectionScreen: React.FC = () => {
                     height: rect.height,
                     id,
                 });
+
+                // ホバー中のボタンに対して確定ボタンを登録
+                if (fsmContext.state === 'hover' && fsmContext.hoveredButtonId === id) {
+                    // 確定ボタンの位置計算（ボタンの下部中央）
+                    const confirmBtnId = `${id}-confirm`;
+                    const confirmBtnWidth = 120;
+                    const confirmBtnHeight = 60;
+                    const confirmBtnX = rect.left + (rect.width / 2) - (confirmBtnWidth / 2);
+                    const confirmBtnY = rect.bottom + 20; // ボタンの下20px
+
+                    registerButton(confirmBtnId, {
+                        x: confirmBtnX,
+                        y: confirmBtnY,
+                        width: confirmBtnWidth,
+                        height: confirmBtnHeight,
+                        id: confirmBtnId,
+                        isConfirmButton: true, // 識別用フラグ
+                        parentId: id
+                    });
+                }
             } else {
                 unregisterButton(id);
             }
         });
     };
 
-    // 画面切り替え時に古いボタンをクリーンアップ & 再登録サイクル
+    // 画面切り替え時やホバー状態変化時にボタンを更新
     useEffect(() => {
         // ボタンRefをリセット（DOMが再描画されるため）
-        buttonRefs.current = {};
+        // buttonRefs.current = {}; // ここでリセットするとホバー時に消えてしまうので削除
 
         // 少し待ってから登録（レンダリング待ち）
-        const timer = setTimeout(updateButtons, 100);
+        const timer = setTimeout(updateButtons, 50);
         return () => clearTimeout(timer);
-    }, [currentView]);
+    }, [currentView, fsmContext.state, fsmContext.hoveredButtonId]);
 
     // 定期的な位置補正 (Resizeなど)
     useEffect(() => {
@@ -299,32 +319,59 @@ export const UnifiedSelectionScreen: React.FC = () => {
                     const isConfirmed = confirmedAction === btn.id;
 
                     return (
-                        <button
-                            key={btn.id}
-                            ref={el => { buttonRefs.current[btn.id] = el; }}
-                            style={{
-                                flex: btn.styleType === 'hero' ? 1 : 'none',
-                                height: btn.styleType === 'hero' ? '70vh' : '180px',
-                                fontSize: btn.styleType === 'hero' ? '64px' : '32px',
-                                fontWeight: '800',
-                                border: isActive && isHover ? '12px solid #fbbf24' : '4px solid transparent',
-                                borderRadius: btn.styleType === 'hero' ? '40px' : '24px',
-                                cursor: 'pointer',
-                                transition: 'all 0.15s ease-out',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                gap: btn.styleType === 'hero' ? '32px' : '16px',
-                                backgroundColor: isActive && isHover ? 'rgb(37, 99, 235)' : isConfirmed ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
-                                color: isActive && isHover ? 'white' : 'rgb(30, 58, 138)',
-                                transform: isActive && isHover ? 'scale(1.05) translateY(-10px)' : isConfirmed ? 'scale(0.95)' : 'scale(1)',
-                                boxShadow: isActive && isHover ? '0 0 0 8px rgba(251, 191, 36, 0.5), 0 25px 50px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.1)',
-                            }}
-                        >
-                            {btn.icon && <span style={{ fontSize: btn.styleType === 'hero' ? '140px' : '48px' }}>{btn.icon}</span>}
-                            <span>{btn.label}</span>
-                        </button>
+                        <div key={btn.id} style={{ position: 'relative', display: 'contents' }}>
+                            <button
+                                ref={el => { buttonRefs.current[btn.id] = el; }}
+                                style={{
+                                    flex: btn.styleType === 'hero' ? 1 : 'none',
+                                    height: btn.styleType === 'hero' ? '70vh' : '180px',
+                                    fontSize: btn.styleType === 'hero' ? '64px' : '32px',
+                                    fontWeight: '800',
+                                    border: isActive && isHover ? '12px solid #fbbf24' : '4px solid transparent',
+                                    borderRadius: btn.styleType === 'hero' ? '40px' : '24px',
+                                    cursor: 'pointer',
+                                    transition: 'all 0.15s ease-out',
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    gap: btn.styleType === 'hero' ? '32px' : '16px',
+                                    backgroundColor: isActive && isHover ? 'rgb(37, 99, 235)' : isConfirmed ? 'rgb(34, 197, 94)' : 'rgb(219, 234, 254)',
+                                    color: isActive && isHover ? 'white' : 'rgb(30, 58, 138)',
+                                    transform: isActive && isHover ? 'scale(1.05) translateY(-10px)' : isConfirmed ? 'scale(0.95)' : 'scale(1)',
+                                    boxShadow: isActive && isHover ? '0 0 0 8px rgba(251, 191, 36, 0.5), 0 25px 50px rgba(37, 99, 235, 0.5)' : '0 10px 20px rgba(37, 99, 235, 0.1)',
+                                }}
+                            >
+                                {btn.icon && <span style={{ fontSize: btn.styleType === 'hero' ? '140px' : '48px' }}>{btn.icon}</span>}
+                                <span>{btn.label}</span>
+                            </button>
+                            {/* 確定ボタン（エンターキー）の表示 */}
+                            {isActive && isHover && (
+                                <div style={{
+                                    position: 'absolute',
+                                    top: '100%',
+                                    left: '50%',
+                                    transform: 'translateX(-50%)',
+                                    marginTop: '20px',
+                                    width: '120px',
+                                    height: '60px',
+                                    backgroundColor: '#22c55e', // Green
+                                    color: 'white',
+                                    borderRadius: '12px',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    fontSize: '18px',
+                                    fontWeight: 'bold',
+                                    boxShadow: '0 4px 6px rgba(0,0,0,0.2)',
+                                    zIndex: 100,
+                                    border: '3px solid white',
+                                    pointerEvents: 'none' // 実際の判定はFSMで行うため、ここでは表示のみ
+                                }}>
+                                    決定 ↵
+                                </div>
+                            )}
+                        </div>
                     );
                 })}
             </div>

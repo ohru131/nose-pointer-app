@@ -8,11 +8,14 @@ export interface ButtonBounds {
   width: number;
   height: number;
   id: string;
+  isConfirmButton?: boolean; // 追加: 確定ボタン識別用
+  parentId?: string; // 追加: 親ボタンID
 }
 
 export interface FSMContext {
   state: FSMState;
   activeButtonId: string | null;
+  hoveredButtonId: string | null; // 追加: ホバー中のボタンID（activeButtonIdと区別）
   hoverStartTime: number | null;
   confirmedButtonId: string | null;
 }
@@ -23,6 +26,7 @@ export function usePointerFSM() {
   const [fsmContext, setFsmContext] = useState<FSMContext>({
     state: 'idle',
     activeButtonId: null,
+    hoveredButtonId: null,
     hoverStartTime: null,
     confirmedButtonId: null,
   });
@@ -96,13 +100,26 @@ export function usePointerFSM() {
 
           // ホバー状態に遷移
           const hoverStartTime = Date.now();
-          // ここでreturnして更新
+
+          // 確定ボタンに触れた場合
+          if (foundButton!.isConfirmButton) {
+            return {
+              ...prev,
+              state: 'confirm',
+              confirmedButtonId: foundButton!.parentId || null, // 親ボタンIDを確定IDとする
+              activeButtonId: foundButton!.id,
+              hoveredButtonId: foundButton!.parentId || null,
+            };
+          }
+
+          // 通常ボタンにホバー開始
           return {
             ...prev,
             state: 'hover',
             activeButtonId: foundButton!.id,
+            hoveredButtonId: foundButton!.id, // ホバーIDを更新
             hoverStartTime,
-            confirmedButtonId: null // 念のためリセット
+            confirmedButtonId: null
           };
         });
       } else {
@@ -115,10 +132,27 @@ export function usePointerFSM() {
             // ホバー終了時間を記録
             lastHoveredRef.current = { id: prev.activeButtonId, time: Date.now() };
           }
+          // ホバーから外れたが、確定ボタンへの移動を考慮して少し待つロジックが必要かもしれないが、
+          // 今回は確定ボタンがボタンのすぐ下にあるため、移動中に一瞬idleになっても
+          // すぐに確定ボタンの判定に入れば問題ない。
+          // ただし、確定ボタン表示中に親ボタンから外れた場合、確定ボタンも消えてしまう可能性がある。
+          // UnifiedSelectionScreen側で、hoveredButtonIdに基づいて確定ボタンを表示しているため、
+          // ここでhoveredButtonIdを即座に消すと確定ボタンも消える。
+          
+          // 対策: 親ボタンから外れても、少しの間（グレース期間）はhoveredButtonIdを維持する？
+          // または、確定ボタンの登録ロジックを見直す。
+          
+          // 今回はシンプルに、activeButtonIdはnullにするが、hoveredButtonIdは維持するアプローチをとる。
+          // ただし、完全に外れた場合はhoveredButtonIdも消す必要がある。
+          
           return {
             ...prev,
             state: 'idle',
             activeButtonId: null,
+            // hoveredButtonId: null, // ここを消すと確定ボタンが消えるので、維持するか検討が必要
+            // しかし、別のボタンに移った場合は更新される。
+            // 何もないところに移動した場合のみ問題。
+            hoveredButtonId: null, // 一旦消す（UI側でチラつき防止が必要なら別途対応）
             hoverStartTime: null,
           };
         });
@@ -134,45 +168,18 @@ export function usePointerFSM() {
 
       setFsmContext((prev) => {
         if (direction === 'down') {
-          // 1. ホバー中の確定
-          if (prev.state === 'hover' && prev.activeButtonId) {
-            return {
-              ...prev,
-              state: 'confirm',
-              confirmedButtonId: prev.activeButtonId,
-            };
-          }
+          // ジェスチャ確定は廃止されたため削除
+          // if (prev.state === 'hover' && prev.activeButtonId) { ... }
+          return prev;
 
-          // 2. グレース期間（ホバーから外れてすぐ）の確定
-          // 「うなずく」動作でポインタがボタンから外れてしまう問題への対策
-          if (prev.state === 'idle' && lastHoveredRef.current.id && Date.now() - lastHoveredRef.current.time < 500) {
-            return {
-              ...prev,
-              state: 'confirm',
-              confirmedButtonId: lastHoveredRef.current.id,
-            };
-          }
+          // ジェスチャ確定は廃止されたため削除
+          // if (prev.state === 'idle' && lastHoveredRef.current.id ... ) { ... }
+          return prev;
         }
 
-        if (direction === 'up') {
-          // 上方向ジェスチャ
-          if (distance > 0.15) {
-            // 大きく上方向 → ホームに戻る
-            return {
-              state: 'idle',
-              activeButtonId: null,
-              hoverStartTime: null,
-              confirmedButtonId: null,
-            };
-          } else {
-            // 小さく上方向 → キャンセル
-            return {
-              ...prev,
-              state: 'cancel',
-              activeButtonId: null,
-            };
-          }
-        }
+        // 上方向ジェスチャも廃止
+        // if (direction === 'up') { ... }
+        return prev;
 
         return prev;
       });
@@ -208,6 +215,7 @@ export function usePointerFSM() {
         setFsmContext({
           state: 'idle',
           activeButtonId: null,
+          hoveredButtonId: null,
           hoverStartTime: null,
           confirmedButtonId: null,
         });
