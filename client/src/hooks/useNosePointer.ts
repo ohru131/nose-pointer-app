@@ -228,6 +228,28 @@ export function useNosePointer() {
         };
         gestureStateRef.current = newState;
         setGestureState(newState);
+
+        // ジェスチャが検出された場合、チャタリング防止のために少し待ってからリセットする
+        // これにより、UnifiedSelectionScreen側でresetGestureを呼ばなくても自然にリセットされる
+        if (direction !== 'none') {
+          setTimeout(() => {
+            // 現在も同じジェスチャ状態ならリセット
+            if (gestureStateRef.current.direction === direction) {
+              const resetState = {
+                direction: 'none' as const,
+                distance: 0,
+                duration: 0,
+              };
+              gestureStateRef.current = resetState;
+              setGestureState(resetState);
+              
+              // 検出基準もリセットして、連続検出を防ぐ
+              prevNosePosRef.current = null;
+              gestureStartTimeRef.current = null;
+              gestureStartPosRef.current = null;
+            }
+          }, 500); // 500ms後にリセット
+        }
       }
 
       prevNosePosRef.current = currentPos;
