@@ -139,7 +139,7 @@ export default function CameraOverlay({
           backgroundColor: 'rgba(239, 68, 68, 0.9)', // 赤色
           border: '2px solid white',
           boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
-          zIndex: 30,
+          zIndex: 9999, // 最前面に表示
         }}
       />
 
@@ -157,7 +157,7 @@ export default function CameraOverlay({
             borderRadius: '20px',
             fontSize: '16px',
             fontWeight: 'bold',
-            zIndex: 30,
+            zIndex: 9999, // 最前面に表示
             boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
             display: 'flex',
             alignItems: 'center',
