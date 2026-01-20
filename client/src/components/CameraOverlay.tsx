@@ -5,6 +5,7 @@ interface CameraOverlayProps {
   videoRef: React.RefObject<HTMLVideoElement | null>;
   pointerPosition: PointerPosition;
   isInitialized: boolean;
+  isHovering?: boolean;
 }
 
 /**
@@ -20,6 +21,7 @@ export default function CameraOverlay({
   videoRef,
   pointerPosition,
   isInitialized,
+  isHovering = false,
 }: CameraOverlayProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const animationFrameRef = useRef<number | null>(null);
@@ -106,21 +108,7 @@ export default function CameraOverlay({
     };
   }, [isInitialized, videoRef]);
 
-  // 鼻周辺のクロップ領域を計算
-  const getCropRegion = () => {
-    const screenWidth = window.innerWidth;
-    const screenHeight = window.innerHeight;
 
-    const cropWidth = screenWidth * 0.3;
-    const cropHeight = screenHeight * 0.4;
-
-    const cropX = Math.max(0, Math.min(pointerPosition.x - cropWidth / 2, screenWidth - cropWidth));
-    const cropY = Math.max(0, Math.min(pointerPosition.y - cropHeight / 2, screenHeight - cropHeight));
-
-    return { x: cropX, y: cropY, width: cropWidth, height: cropHeight };
-  };
-
-  const cropRegion = getCropRegion();
 
   return (
     <div
@@ -139,135 +127,48 @@ export default function CameraOverlay({
         }}
       />
 
-      {/* 鼻周辺のクロップ表示 */}
-      {isInitialized && pointerPosition.isTracking && videoRef.current && (
+      {/* シンプルなポインタ（赤い丸） */}
+      <div
+        style={{
+          position: 'fixed',
+          left: `${pointerPosition.x - 12}px`,
+          top: `${pointerPosition.y - 12}px`,
+          width: '24px',
+          height: '24px',
+          borderRadius: '50%',
+          backgroundColor: 'rgba(239, 68, 68, 0.9)', // 赤色
+          border: '2px solid white',
+          boxShadow: '0 2px 5px rgba(0,0,0,0.3)',
+          zIndex: 30,
+        }}
+      />
+
+      {/* 確定アクションガイド（ホバー時のみ表示） - オレンジに変更 */}
+      {isHovering && (
         <div
           style={{
             position: 'fixed',
-            left: `${cropRegion.x}px`,
-            top: `${cropRegion.y}px`,
-            width: `${cropRegion.width}px`,
-            height: `${cropRegion.height}px`,
-            border: '2px solid rgb(59, 130, 246)',
-            opacity: 0.4,
-            backgroundColor: 'rgba(59, 130, 246, 0.08)',
-            borderRadius: '8px',
-            overflow: 'hidden',
+            left: `${pointerPosition.x}px`,
+            top: `${pointerPosition.y + 30}px`,
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(249, 115, 22, 0.9)', // オレンジ (orange-500)
+            color: 'white',
+            padding: '6px 12px',
+            borderRadius: '20px',
+            fontSize: '16px',
+            fontWeight: 'bold',
+            zIndex: 30,
+            boxShadow: '0 4px 6px rgba(0,0,0,0.1)',
+            display: 'flex',
+            alignItems: 'center',
+            gap: '4px',
+            whiteSpace: 'nowrap',
           }}
-        />
+        >
+          <span>確定</span>
+          <span style={{ fontSize: '20px', fontWeight: '900' }}>↓</span>
+        </div>
       )}
-
-      {/* 鼻ポインタ表示 */}
-      {isInitialized && pointerPosition.isTracking && (
-        <>
-          {/* 外側の円（信頼度に応じた色） */}
-          <div
-            style={{
-              position: 'fixed',
-              left: `${pointerPosition.x - 20}px`,
-              top: `${pointerPosition.y - 20}px`,
-              width: '40px',
-              height: '40px',
-              borderRadius: '50%',
-              border: `2px solid ${
-                pointerPosition.confidence > 0.8
-                  ? '#22c55e'
-                  : pointerPosition.confidence > 0.6
-                    ? '#3b82f6'
-                    : '#ef4444'
-              }`,
-              backgroundColor:
-                pointerPosition.confidence > 0.8
-                  ? 'rgba(34, 197, 94, 0.15)'
-                  : pointerPosition.confidence > 0.6
-                    ? 'rgba(59, 130, 246, 0.15)'
-                    : 'rgba(239, 68, 68, 0.15)',
-              boxShadow:
-                pointerPosition.confidence > 0.8
-                  ? '0 0 15px rgba(34, 197, 94, 0.6)'
-                  : pointerPosition.confidence > 0.6
-                    ? '0 0 15px rgba(59, 130, 246, 0.6)'
-                    : '0 0 15px rgba(239, 68, 68, 0.6)',
-              zIndex: 20,
-              transition: 'all 0.1s ease-out',
-            }}
-          />
-
-          {/* 内側のドット（鼻の正確な位置） */}
-          <div
-            style={{
-              position: 'fixed',
-              left: `${pointerPosition.x - 8}px`,
-              top: `${pointerPosition.y - 8}px`,
-              width: '16px',
-              height: '16px',
-              borderRadius: '50%',
-              backgroundColor:
-                pointerPosition.confidence > 0.8
-                  ? '#22c55e'
-                  : pointerPosition.confidence > 0.6
-                    ? '#3b82f6'
-                    : '#ef4444',
-              boxShadow: '0 0 10px rgba(0, 0, 0, 0.4), inset 0 0 4px rgba(255, 255, 255, 0.3)',
-              zIndex: 21,
-            }}
-          />
-
-          {/* 十字カーソル */}
-          <div
-            style={{
-              position: 'fixed',
-              left: `${pointerPosition.x}px`,
-              top: `${pointerPosition.y - 15}px`,
-              width: '1px',
-              height: '30px',
-              backgroundColor:
-                pointerPosition.confidence > 0.8
-                  ? 'rgba(34, 197, 94, 0.6)'
-                  : pointerPosition.confidence > 0.6
-                    ? 'rgba(59, 130, 246, 0.6)'
-                    : 'rgba(239, 68, 68, 0.6)',
-              zIndex: 19,
-            }}
-          />
-          <div
-            style={{
-              position: 'fixed',
-              left: `${pointerPosition.x - 15}px`,
-              top: `${pointerPosition.y}px`,
-              width: '30px',
-              height: '1px',
-              backgroundColor:
-                pointerPosition.confidence > 0.8
-                  ? 'rgba(34, 197, 94, 0.6)'
-                  : pointerPosition.confidence > 0.6
-                    ? 'rgba(59, 130, 246, 0.6)'
-                    : 'rgba(239, 68, 68, 0.6)',
-              zIndex: 19,
-            }}
-          />
-
-          {/* 信頼度インジケーター */}
-          <div
-            style={{
-              position: 'fixed',
-              left: `${pointerPosition.x + 30}px`,
-              top: `${pointerPosition.y - 12}px`,
-              fontSize: '12px',
-              fontWeight: 'bold',
-              color: 'white',
-              padding: '4px 8px',
-              borderRadius: '4px',
-              backgroundColor: 'rgba(0, 0, 0, 0.6)',
-              zIndex: 20,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {Math.round(pointerPosition.confidence * 100)}%
-          </div>
-        </>
-      )}
-
       {/* トラッキング状態インジケーター */}
       {isInitialized && !pointerPosition.isTracking && (
         <div

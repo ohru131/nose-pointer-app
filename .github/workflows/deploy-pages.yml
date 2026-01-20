@@ -1,0 +1,46 @@
+name: Build and Deploy to gh-pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write
+
+jobs:
+  build_and_deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm (v10)
+        uses: pnpm/action-setup@v2
+        with:
+          version: '10'
+
+      - name: Verify pnpm
+        run: pnpm -v
+
+      - name: Install dependencies (allow lockfile mismatch)
+        # allow update/resolution in CI to proceed when lockfile/config mismatch occurs
+        run: pnpm install --no-frozen-lockfile
+
+      - name: Build
+        env:
+          VITE_BASE: '/nose-pointer-app/'
+        run: pnpm build
+
+      - name: Deploy to gh-pages branch
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dist/public
+          publish_branch: gh-pages
+          allow_empty_commit: true

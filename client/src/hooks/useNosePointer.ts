@@ -38,6 +38,7 @@ export function useNosePointer() {
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
+  const [sensitivity, setSensitivity] = useState(2.0);
 
   // 前フレームの鼻位置を追跡（ジェスチャ検出用）
   const prevNosePosRef = useRef<{ x: number; y: number } | null>(null);
@@ -130,8 +131,8 @@ export function useNosePointer() {
             .then(() => {
               console.log('✅ Video playback started');
               console.log(`📐 Video dimensions: ${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`);
-              setDebugInfo((prev) => ({ 
-                ...prev, 
+              setDebugInfo((prev) => ({
+                ...prev,
                 camera: 'Playing',
                 videoDimensions: `${videoRef.current?.videoWidth}x${videoRef.current?.videoHeight}`,
               }));
@@ -237,13 +238,32 @@ export function useNosePointer() {
           const screenHeight = window.innerHeight;
 
           // ビデオ座標をスクリーン座標に変換
-          const screenX = noseLandmark.x * screenWidth;
-          const screenY = noseLandmark.y * screenHeight;
-          const confidence = noseLandmark.z || 0.5;
+          // ユーザーの要望により、カメラが鏡表示になっているのに合わせて動きを左右反転させる
+          // 感度調整を追加: 中心(0.5)からの偏差を増幅する
+          const centeredX = 1 - noseLandmark.x - 0.5;
+          const centeredY = noseLandmark.y - 0.5;
+
+          const rawScreenX = (centeredX * sensitivity + 0.5) * screenWidth;
+          const rawScreenY = (centeredY * sensitivity + 0.5) * screenHeight;
+
+          // スムージング処理 (Exponential Moving Average)
+          // アルファ値: 小さいほど滑らかだが遅延が増える (0.1 ~ 0.5 推奨)
+          const alpha = 0.3;
+
+          let smoothedX = rawScreenX;
+          let smoothedY = rawScreenY;
+
+          if (pointerPosition.isTracking) {
+            smoothedX = alpha * rawScreenX + (1 - alpha) * pointerPosition.x;
+            smoothedY = alpha * rawScreenY + (1 - alpha) * pointerPosition.y;
+          }
+
+          // 信頼度は検出できた時点で1.0とする（Z座標は深度なので信頼度ではない）
+          const confidence = 1.0;
 
           setPointerPosition({
-            x: screenX,
-            y: screenY,
+            x: smoothedX,
+            y: smoothedY,
             confidence,
             isTracking: true,
           });
@@ -255,7 +275,7 @@ export function useNosePointer() {
           }));
 
           // ジェスチャ検出
-          detectGesture({ x: screenX, y: screenY }, screenHeight);
+          detectGesture({ x: smoothedX, y: smoothedY }, screenHeight);
         }
       } else {
         setPointerPosition((prev) => ({ ...prev, isTracking: false }));
@@ -270,12 +290,12 @@ export function useNosePointer() {
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  }, [detectGesture]);
+  }, [detectGesture, sensitivity]);
 
   // 初期化と開始
   useEffect(() => {
     console.log('🚀 useNosePointer mounted');
-    
+
     // ビデオ要素を作成（DOMに追加しない、MediaPipeの内部処理用）
     if (!videoRef.current) {
       const video = document.createElement('video');
@@ -284,7 +304,7 @@ export function useNosePointer() {
       video.style.display = 'none'; // 非表示
       videoRef.current = video;
     }
-    
+
     initializeFaceLandmarker();
     startVideoStream();
 
@@ -335,5 +355,7 @@ export function useNosePointer() {
     error,
     resetGesture,
     debugInfo,
+    sensitivity,
+    setSensitivity,
   };
 }

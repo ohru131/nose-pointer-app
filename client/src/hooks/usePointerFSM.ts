@@ -18,7 +18,6 @@ export interface FSMContext {
 }
 
 const HOVER_THRESHOLD_MS = 300; // ホバー状態から確定までの静止時間
-const CANCEL_ZONE_HEIGHT = 80; // 画面下部のキャンセルゾーンの高さ
 
 export function usePointerFSM() {
   const [fsmContext, setFsmContext] = useState<FSMContext>({
@@ -32,6 +31,9 @@ export function usePointerFSM() {
   const hoverTimerRef = useRef<NodeJS.Timeout | null>(null);
   const inactivityTimerRef = useRef<NodeJS.Timeout | null>(null);
   const lastGestureTimeRef = useRef<number>(Date.now());
+
+  // 直近のホバー情報を記録（グレース期間用）
+  const lastHoveredRef = useRef<{ id: string | null; time: number }>({ id: null, time: 0 });
 
   // ボタン境界の登録
   const registerButton = useCallback((id: string, bounds: ButtonBounds) => {
@@ -60,27 +62,17 @@ export function usePointerFSM() {
     []
   );
 
-  // ポインタがキャンセルゾーン内かどうかを判定
-  const isPointerInCancelZone = useCallback((pointerY: number): boolean => {
-    const screenHeight = window.innerHeight;
-    return pointerY >= screenHeight - CANCEL_ZONE_HEIGHT;
-  }, []);
-
   // ポインタ位置の更新と状態遷移
   const updatePointerPosition = useCallback(
     (pointerX: number, pointerY: number) => {
       lastGestureTimeRef.current = Date.now();
 
-      // キャンセルゾーン判定
-      if (isPointerInCancelZone(pointerY)) {
-        setFsmContext((prev) => ({
-          ...prev,
-          state: 'cancel',
-          activeButtonId: null,
-        }));
-        if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
-        return;
-      }
+      // 状態が 'confirm' の場合は、リセットされるまで状態遷移しない (連打防止 & 緑色固定バグ修正)
+      // setFsmContextのコールバック内で現在のstateを確認する必要があるが、
+      // ここでは簡易的に参照できないため、setFsmContext内でガードするか、
+      // そもそも FSMContext を ref で持つ設計にするのが理想。
+      // ただし、今回はuseEffect側で state を監視して制御しているため、
+      // ここでブロックするよりも setFsmContext の update function 内で check する。
 
       // ボタン内判定
       let foundButton: ButtonBounds | null = null;
@@ -93,6 +85,8 @@ export function usePointerFSM() {
       if (foundButton) {
         // ボタンにホバー中
         setFsmContext((prev) => {
+          if (prev.state === 'confirm') return prev; // 確定中は無視
+
           if (prev.activeButtonId === foundButton!.id) {
             return prev; // 同じボタンでホバー継続
           }
@@ -102,20 +96,24 @@ export function usePointerFSM() {
 
           // ホバー状態に遷移
           const hoverStartTime = Date.now();
-          setFsmContext((inner) => ({
-            ...inner,
+          // ここでreturnして更新
+          return {
+            ...prev,
             state: 'hover',
             activeButtonId: foundButton!.id,
             hoverStartTime,
-          }));
-
-          return prev;
+            confirmedButtonId: null // 念のためリセット
+          };
         });
       } else {
         // ボタン外
         setFsmContext((prev) => {
+          if (prev.state === 'confirm') return prev; // 確定中は無視
+
           if (prev.state !== 'idle') {
             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+            // ホバー終了時間を記録
+            lastHoveredRef.current = { id: prev.activeButtonId, time: Date.now() };
           }
           return {
             ...prev,
@@ -126,7 +124,7 @@ export function usePointerFSM() {
         });
       }
     },
-    [buttonBounds, isPointerInButton, isPointerInCancelZone]
+    [buttonBounds, isPointerInButton]
   );
 
   // ジェスチャによる状態遷移
@@ -135,13 +133,25 @@ export function usePointerFSM() {
       if (direction === 'none') return;
 
       setFsmContext((prev) => {
-        if (direction === 'down' && prev.state === 'hover' && prev.activeButtonId) {
-          // 下方向ジェスチャ → 確定
-          return {
-            ...prev,
-            state: 'confirm',
-            confirmedButtonId: prev.activeButtonId,
-          };
+        if (direction === 'down') {
+          // 1. ホバー中の確定
+          if (prev.state === 'hover' && prev.activeButtonId) {
+            return {
+              ...prev,
+              state: 'confirm',
+              confirmedButtonId: prev.activeButtonId,
+            };
+          }
+
+          // 2. グレース期間（ホバーから外れてすぐ）の確定
+          // 「うなずく」動作でポインタがボタンから外れてしまう問題への対策
+          if (prev.state === 'idle' && lastHoveredRef.current.id && Date.now() - lastHoveredRef.current.time < 500) {
+            return {
+              ...prev,
+              state: 'confirm',
+              confirmedButtonId: lastHoveredRef.current.id,
+            };
+          }
         }
 
         if (direction === 'up') {
