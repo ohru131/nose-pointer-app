@@ -277,7 +277,7 @@ export const UnifiedSelectionScreen: React.FC = () => {
 
             {/* Header / Title (Only for sub-pages) */}
             {currentView !== 'home' && (
-                <div style={{ marginBottom: '20px', textAlign: 'center', zIndex: 10 }}>
+                <div style={{ marginBottom: '20px', textAlign: 'center', position: 'relative', zIndex: 1 }}>
                     <h1 style={{ fontSize: '32px', fontWeight: 'bold', color: '#1e293b' }}>
                         {config.icon} {config.title}
                     </h1>
@@ -296,7 +296,8 @@ export const UnifiedSelectionScreen: React.FC = () => {
                 height: currentView === 'home' ? '80vh' : 'auto',
                 padding: currentView === 'home' ? '40px' : '0',
                 boxSizing: 'border-box',
-                zIndex: 10,
+                position: 'relative',
+                zIndex: 1,
             }}>
                 {config.buttons.map((btn) => {
                     const isActive = fsmContext.activeButtonId === btn.id;
