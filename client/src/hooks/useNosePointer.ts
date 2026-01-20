@@ -42,6 +42,13 @@ export function useNosePointer() {
     distance: 0,
     duration: 0,
   });
+  
+  // gestureStateの更新を抑制するためのRef
+  const gestureStateRef = useRef<GestureState>({
+    direction: 'none',
+    distance: 0,
+    duration: 0,
+  });
 
   const [isInitialized, setIsInitialized] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -211,11 +218,17 @@ export function useNosePointer() {
         direction = 'up';
       }
 
-      setGestureState({
-        direction,
-        distance: distancePercent,
-        duration,
-      });
+      // 状態更新の抑制：方向が変わった時のみ更新する
+      // または、方向がnoneでない場合は更新する（イベント発火のため）
+      if (direction !== gestureStateRef.current.direction || (direction !== 'none')) {
+        const newState = {
+          direction,
+          distance: distancePercent,
+          duration,
+        };
+        gestureStateRef.current = newState;
+        setGestureState(newState);
+      }
 
       prevNosePosRef.current = currentPos;
     },
@@ -357,11 +370,14 @@ export function useNosePointer() {
 
   // ジェスチャのリセット
   const resetGesture = useCallback(() => {
-    setGestureState({
-      direction: 'none',
+    const newState = {
+      direction: 'none' as const,
       distance: 0,
       duration: 0,
-    });
+    };
+    gestureStateRef.current = newState;
+    setGestureState(newState);
+    
     prevNosePosRef.current = null;
     gestureStartTimeRef.current = null;
     gestureStartPosRef.current = null;
