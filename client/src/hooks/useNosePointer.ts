@@ -209,14 +209,15 @@ export function useNosePointer() {
 
       let direction: 'none' | 'up' | 'down' = 'none';
 
-      // ジェスチャ検出ロジックを無効化（確定ボタン方式へ変更のため）
-      // if (deltaY > 2 && totalDeltaY > screenHeight * 0.02) {
-      //   direction = 'down';
-      // }
-      // 上方向ジェスチャ（キャンセル操作）：誤動作防止のため無効化
-      // else if (deltaY < -5 && totalDeltaY < -screenHeight * 0.05) {
-      //   direction = 'up';
-      // }
+      // ジェスチャ検出ロジックを復活（下ジェスチャ確定のため）
+      // 下方向への素早い動きを検出
+      if (deltaY > 2 && totalDeltaY > screenHeight * 0.02) {
+        direction = 'down';
+      }
+      // 上方向ジェスチャ（キャンセル操作）
+      else if (deltaY < -5 && totalDeltaY < -screenHeight * 0.05) {
+        direction = 'up';
+      }
 
       // 状態更新の抑制：方向が変わった時のみ更新する
       // 無限ループ防止のため、方向が同じ場合は更新しない
@@ -329,8 +330,9 @@ export function useNosePointer() {
           
           pointerPositionRef.current = newPos;
           
-          // 0.5ピクセル以上の移動、またはトラッキング状態の変化があった場合のみ更新
-          if (dist > 0.5 || prevPos.isTracking !== newPos.isTracking) {
+          // 1.0ピクセル以上の移動、またはトラッキング状態の変化があった場合のみ更新
+          // 無限ループ防止のため閾値を上げる
+          if (dist > 1.0 || prevPos.isTracking !== newPos.isTracking) {
             setPointerPosition(newPos);
           }
 

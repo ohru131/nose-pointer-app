@@ -60,17 +60,16 @@ const SCREEN_CONFIG: Record<ViewType, { title?: string; icon?: string; buttons: 
 
 export const UnifiedSelectionScreen: React.FC = () => {
     // MediaPipe & Pointer Tracking (Persistent)
-    const { videoRef, pointerPosition, isInitialized, error, debugInfo, sensitivity, setSensitivity } = useNosePointer();
+    const { videoRef, pointerPosition, gestureState, isInitialized, error, debugInfo, sensitivity, setSensitivity } = useNosePointer();
 
     // FSM (Shared Logic)
-    const { fsmContext, registerButton, unregisterButton, updatePointerPosition, resetConfirm } = usePointerFSM();
+    const { fsmContext, registerButton, unregisterButton, updatePointerPosition, handleGesture, resetConfirm } = usePointerFSM();
 
     const logs = useLogCapture();
     const [currentView, setCurrentView] = useState<ViewType>('home');
     const [confirmedAction, setConfirmedAction] = useState<string | null>(null);
     const [clickFlash, setClickFlash] = useState(false);
     const [showInitInfo, setShowInitInfo] = useState(true);
-    const [initStartTime] = useState(Date.now());
     
     // ボタンRef管理
     const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -118,6 +117,13 @@ export const UnifiedSelectionScreen: React.FC = () => {
             updatePointerPosition(pointerPosition.x, pointerPosition.y);
         }
     }, [pointerPosition, isInitialized, updatePointerPosition]);
+
+    // ジェスチャ連携
+    useEffect(() => {
+        if (gestureState.direction !== 'none') {
+            handleGesture(gestureState.direction, gestureState.distance);
+        }
+    }, [gestureState, handleGesture]);
 
     // アクション実行
     useEffect(() => {
@@ -186,11 +192,15 @@ export const UnifiedSelectionScreen: React.FC = () => {
                     {/* 状態インジケーター */}
                     <div className={`px-4 py-2 rounded-full text-sm font-bold transition-colors duration-300 ${
                         fsmContext.state === 'confirm' ? 'bg-blue-500 text-white' :
-                        fsmContext.state === 'hover' ? 'bg-green-500 text-white' :
+                        fsmContext.state === 'ready_to_confirm' ? 'bg-blue-500 text-white animate-pulse' :
+                        fsmContext.state === 'hover_inner' ? 'bg-green-500 text-white' :
+                        fsmContext.state === 'hover_outer' ? 'bg-yellow-500 text-white' :
                         'bg-slate-200 text-slate-500'
                     }`}>
                         {fsmContext.state === 'confirm' ? '決定！' :
-                         fsmContext.state === 'hover' ? '選択中...' : '待機中'}
+                         fsmContext.state === 'ready_to_confirm' ? '下に動かして決定！' :
+                         fsmContext.state === 'hover_inner' ? 'チャージ中...' :
+                         fsmContext.state === 'hover_outer' ? '準備中...' : '待機中'}
                     </div>
                 </div>
 
@@ -199,6 +209,11 @@ export const UnifiedSelectionScreen: React.FC = () => {
                     {config.buttons.map((btn) => {
                         const isHovered = fsmContext.activeButtonId === btn.id;
                         const isConfirmed = confirmedAction === btn.id;
+                        
+                        // 状態判定
+                        const isOuter = isHovered && fsmContext.state === 'hover_outer';
+                        const isInner = isHovered && fsmContext.state === 'hover_inner';
+                        const isReady = isHovered && fsmContext.state === 'ready_to_confirm';
                         
                         // スタイル分岐
                         const isHero = btn.styleType === 'hero';
@@ -215,13 +230,17 @@ export const UnifiedSelectionScreen: React.FC = () => {
                                         w-full h-full rounded-3xl border-4 transition-all duration-200 relative overflow-hidden
                                         flex flex-col items-center justify-center gap-4
                                         ${isConfirmed ? 'scale-95 border-blue-500 bg-blue-50' : 
-                                          isHovered ? 'scale-105 border-green-500 bg-green-50 shadow-xl z-20' : 
+                                          isReady ? 'scale-105 border-blue-500 bg-blue-50 shadow-xl z-20 ring-4 ring-blue-200' :
+                                          isInner ? 'scale-105 border-green-500 bg-green-50 shadow-xl z-20' : 
+                                          isOuter ? 'scale-100 border-yellow-400 bg-yellow-50 shadow-lg z-20' :
                                           'border-slate-200 bg-white shadow-md hover:border-slate-300'}
                                     `}
                                 >
                                     {/* 背景プログレス（下から上に溜まる） */}
                                     <div 
-                                        className="absolute bottom-0 left-0 w-full bg-green-200/50 transition-all duration-75 ease-linear"
+                                        className={`absolute bottom-0 left-0 w-full transition-all duration-75 ease-linear ${
+                                            isReady ? 'bg-blue-200/50' : 'bg-green-200/50'
+                                        }`}
                                         style={{ height: `${progress}%` }}
                                     />
 
@@ -233,14 +252,29 @@ export const UnifiedSelectionScreen: React.FC = () => {
                                     )}
                                     
                                     {/* ラベル */}
-                                    <span className={`text-3xl font-bold ${isHovered ? 'text-green-800' : 'text-slate-700'}`}>
+                                    <span className={`text-3xl font-bold ${
+                                        isReady ? 'text-blue-800' :
+                                        isInner ? 'text-green-800' :
+                                        isOuter ? 'text-yellow-800' :
+                                        'text-slate-700'
+                                    }`}>
                                         {btn.label}
                                     </span>
 
-                                    {/* ガイドメッセージ（ホバー時のみ） */}
-                                    {isHovered && (
-                                        <span className="absolute bottom-4 text-sm font-bold text-green-600 animate-pulse">
-                                            そのまま待って決定
+                                    {/* ガイドメッセージ */}
+                                    {isOuter && (
+                                        <span className="absolute bottom-4 text-sm font-bold text-yellow-600">
+                                            中央を見てチャージ
+                                        </span>
+                                    )}
+                                    {isInner && (
+                                        <span className="absolute bottom-4 text-sm font-bold text-green-600">
+                                            チャージ中...
+                                        </span>
+                                    )}
+                                    {isReady && (
+                                        <span className="absolute bottom-4 text-lg font-bold text-blue-600 animate-bounce">
+                                            ⬇️ 下に動かして決定
                                         </span>
                                     )}
                                 </button>
@@ -261,7 +295,7 @@ export const UnifiedSelectionScreen: React.FC = () => {
                                                 cx="24"
                                                 cy="24"
                                                 r="20"
-                                                stroke="#22c55e"
+                                                stroke={isReady ? '#3b82f6' : isInner ? '#22c55e' : '#eab308'}
                                                 strokeWidth="4"
                                                 fill="none"
                                                 strokeDasharray={126}

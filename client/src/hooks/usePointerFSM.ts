@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 
-export type FSMState = 'idle' | 'hover' | 'confirm';
+export type FSMState = 'idle' | 'hover_outer' | 'hover_inner' | 'ready_to_confirm' | 'confirm';
 
 export interface ButtonBounds {
   x: number;
@@ -18,7 +18,7 @@ export interface FSMContext {
   progress: number; // 0 to 100
 }
 
-const DWELL_TIME_MS = 1500; // 1.5秒滞留で決定
+const CHARGE_TIME_MS = 1000; // 1.0秒でチャージ完了
 
 export function usePointerFSM() {
   const [fsmContext, setFsmContext] = useState<FSMContext>({
@@ -30,7 +30,7 @@ export function usePointerFSM() {
   });
 
   const buttonBoundsRef = useRef<Map<string, ButtonBounds>>(new Map());
-  const dwellTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const chargeTimerRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const lastGestureTimeRef = useRef<number>(Date.now());
 
@@ -44,24 +44,41 @@ export function usePointerFSM() {
     buttonBoundsRef.current.delete(id);
   }, []);
 
-  // ポインタ位置がボタン内かどうかを判定
-  const isPointerInButton = useCallback(
-    (pointerX: number, pointerY: number, bounds: ButtonBounds): boolean => {
-      return (
-        pointerX >= bounds.x &&
-        pointerX <= bounds.x + bounds.width &&
-        pointerY >= bounds.y &&
-        pointerY <= bounds.y + bounds.height
-      );
+  // ポインタ位置がボタン内かどうか、および中央エリアかどうかを判定
+  const checkPointerArea = useCallback(
+    (pointerX: number, pointerY: number, bounds: ButtonBounds): 'none' | 'outer' | 'inner' => {
+      if (
+        pointerX < bounds.x ||
+        pointerX > bounds.x + bounds.width ||
+        pointerY < bounds.y ||
+        pointerY > bounds.y + bounds.height
+      ) {
+        return 'none';
+      }
+
+      // 中央80%の判定
+      const marginX = bounds.width * 0.1; // 左右10%ずつ
+      const marginY = bounds.height * 0.1; // 上下10%ずつ
+
+      if (
+        pointerX >= bounds.x + marginX &&
+        pointerX <= bounds.x + bounds.width - marginX &&
+        pointerY >= bounds.y + marginY &&
+        pointerY <= bounds.y + bounds.height - marginY
+      ) {
+        return 'inner';
+      }
+
+      return 'outer';
     },
     []
   );
 
   // タイマーとプログレスのクリア
   const clearTimers = useCallback(() => {
-    if (dwellTimerRef.current) {
-      clearTimeout(dwellTimerRef.current);
-      dwellTimerRef.current = null;
+    if (chargeTimerRef.current) {
+      clearTimeout(chargeTimerRef.current);
+      chargeTimerRef.current = null;
     }
     if (progressIntervalRef.current) {
       clearInterval(progressIntervalRef.current);
@@ -76,9 +93,13 @@ export function usePointerFSM() {
 
       // ボタン内判定
       let foundButton: ButtonBounds | null = null;
+      let area: 'none' | 'outer' | 'inner' = 'none';
+
       buttonBoundsRef.current.forEach((bounds) => {
-        if (isPointerInButton(pointerX, pointerY, bounds)) {
+        const check = checkPointerArea(pointerX, pointerY, bounds);
+        if (check !== 'none') {
           foundButton = bounds;
+          area = check;
         }
       });
 
@@ -89,54 +110,83 @@ export function usePointerFSM() {
           // 既に確定済みなら何もしない（リセット待ち）
           if (prev.state === 'confirm') return prev;
 
-          // 同じボタンにホバー継続中
+          // 状態が変わらない場合は更新しない（無限ループ防止）
           if (prev.activeButtonId === btnId) {
-            return prev;
+            if (prev.state === 'ready_to_confirm') return prev; // チャージ完了後は維持
+            
+            if (area === 'inner' && prev.state === 'hover_inner') return prev; // チャージ中はプログレス更新のみ
+            if (area === 'outer' && prev.state === 'hover_outer') return prev; // 外周ホバー継続
           }
 
-          // 新しいボタンにホバー開始（または別のボタンから移動）
-          clearTimers();
+          // 新しいボタン、またはエリア移動
+          
+          // 外周エリアの場合
+          if (area === 'outer') {
+            clearTimers();
+            return {
+              state: 'hover_outer',
+              activeButtonId: btnId,
+              hoverStartTime: null,
+              confirmedButtonId: null,
+              progress: 0,
+            };
+          }
 
-          const startTime = Date.now();
+          // 中央エリアの場合（チャージ開始）
+          if (area === 'inner') {
+            // 既にチャージ中なら何もしない
+            if (prev.state === 'hover_inner' && prev.activeButtonId === btnId) return prev;
+            
+            // 既にチャージ完了なら維持
+            if (prev.state === 'ready_to_confirm' && prev.activeButtonId === btnId) return prev;
 
-          // Dwell Timer開始
-          dwellTimerRef.current = setTimeout(() => {
-            setFsmContext((current) => {
-              if (current.activeButtonId === btnId) {
-                clearTimers();
+            clearTimers();
+            const startTime = Date.now();
+
+            // チャージ完了タイマー
+            chargeTimerRef.current = setTimeout(() => {
+              setFsmContext((current) => {
+                if (current.activeButtonId === btnId && current.state === 'hover_inner') {
+                  clearTimers();
+                  return {
+                    ...current,
+                    state: 'ready_to_confirm',
+                    progress: 100,
+                  };
+                }
+                return current;
+              });
+            }, CHARGE_TIME_MS);
+
+            // プログレス更新用インターバル
+            progressIntervalRef.current = setInterval(() => {
+              setFsmContext((current) => {
+                if (current.activeButtonId !== btnId || current.state !== 'hover_inner') {
+                  return current;
+                }
+                const elapsed = Date.now() - startTime;
+                const newProgress = Math.min(100, (elapsed / CHARGE_TIME_MS) * 100);
+                
+                // プログレスが変わらない場合は更新しない
+                if (current.progress === newProgress) return current;
+
                 return {
                   ...current,
-                  state: 'confirm',
-                  confirmedButtonId: btnId,
-                  progress: 100,
+                  progress: newProgress,
                 };
-              }
-              return current;
-            });
-          }, DWELL_TIME_MS);
+              });
+            }, 50);
 
-          // プログレス更新用インターバル
-          progressIntervalRef.current = setInterval(() => {
-            setFsmContext((current) => {
-              if (current.activeButtonId !== btnId || current.state === 'confirm') {
-                return current;
-              }
-              const elapsed = Date.now() - startTime;
-              const newProgress = Math.min(100, (elapsed / DWELL_TIME_MS) * 100);
-              return {
-                ...current,
-                progress: newProgress,
-              };
-            });
-          }, 50); // 50msごとに更新
+            return {
+              state: 'hover_inner',
+              activeButtonId: btnId,
+              hoverStartTime: startTime,
+              confirmedButtonId: null,
+              progress: 0,
+            };
+          }
 
-          return {
-            state: 'hover',
-            activeButtonId: btnId,
-            hoverStartTime: startTime,
-            confirmedButtonId: null,
-            progress: 0,
-          };
+          return prev;
         });
       } else {
         // ボタン外
@@ -159,8 +209,24 @@ export function usePointerFSM() {
         });
       }
     },
-    [isPointerInButton, clearTimers]
+    [checkPointerArea, clearTimers]
   );
+
+  // ジェスチャ処理（下向きで確定）
+  const handleGesture = useCallback((direction: 'up' | 'down' | 'none', distance: number) => {
+    if (direction === 'down') {
+      setFsmContext((prev) => {
+        if (prev.state === 'ready_to_confirm' && prev.activeButtonId) {
+          return {
+            ...prev,
+            state: 'confirm',
+            confirmedButtonId: prev.activeButtonId,
+          };
+        }
+        return prev;
+      });
+    }
+  }, []);
 
   // 確定状態をリセット
   const resetConfirm = useCallback(() => {
@@ -184,6 +250,7 @@ export function usePointerFSM() {
     registerButton,
     unregisterButton,
     updatePointerPosition,
+    handleGesture,
     resetConfirm,
   };
 }
