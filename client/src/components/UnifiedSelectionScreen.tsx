@@ -127,12 +127,10 @@ export const UnifiedSelectionScreen: React.FC = () => {
     useEffect(() => {
         if (gestureState.direction !== 'none') {
             handleGesture(gestureState.direction, gestureState.distance);
-
-            // 下ジェスチャ処理はFSM内で処理される
-            // 上ジェスチャで戻る機能は誤動作防止のため削除
-            // resetGestureはuseNosePointer側で自然にリセットされるのを待つため削除
         }
-    }, [gestureState, handleGesture, currentView]);
+        // gestureState全体ではなく、directionのみを監視してループを防止
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gestureState.direction, handleGesture]);
 
     // アクション実行
     useEffect(() => {

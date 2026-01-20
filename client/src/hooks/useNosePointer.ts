@@ -209,8 +209,8 @@ export function useNosePointer() {
 
       let direction: 'none' | 'up' | 'down' = 'none';
 
-      // 下方向ジェスチャ（確定操作）：下方向に画面高の5～8%移動
-      if (deltaY > 5 && totalDeltaY > screenHeight * 0.05) {
+      // 下方向ジェスチャ（確定操作）：下方向に画面高の2%移動（感度緩和）
+      if (deltaY > 2 && totalDeltaY > screenHeight * 0.02) {
         direction = 'down';
       }
       // 上方向ジェスチャ（キャンセル操作）：誤動作防止のため無効化
