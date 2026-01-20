@@ -94,6 +94,10 @@ export function usePointerFSM() {
 
           // 確定ボタンに触れた場合
           if (foundButton!.isConfirmButton) {
+            // 既に確定状態なら更新しない
+            if ((prev.state as string) === 'confirm' && prev.confirmedButtonId === foundButton!.parentId) {
+              return prev;
+            }
             return {
               ...prev,
               state: 'confirm',
@@ -104,6 +108,11 @@ export function usePointerFSM() {
           }
 
           // 通常ボタンにホバー開始
+          // 既に同じボタンをホバー中なら更新しない（activeButtonIdチェックだけでは不十分な場合があるため）
+          if (prev.state === 'hover' && prev.hoveredButtonId === foundButton!.id && prev.activeButtonId === foundButton!.id) {
+            return prev;
+          }
+
           return {
             ...prev,
             state: 'hover',
@@ -136,6 +145,11 @@ export function usePointerFSM() {
           // そして、一定時間後に本当に何もなければidleにするタイマーをセットする。
           
           if (prev.state === 'hover' && prev.hoveredButtonId) {
+             // 既にactiveButtonIdがnullなら（猶予期間中なら）、stateを更新しない
+             if (prev.activeButtonId === null) {
+               return prev;
+             }
+
              // 猶予タイマーを開始（既存のhoverTimerRefを再利用または新規作成）
              if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
              
