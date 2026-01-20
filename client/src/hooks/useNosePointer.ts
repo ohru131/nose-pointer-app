@@ -28,6 +28,14 @@ export function useNosePointer() {
     confidence: 0,
     isTracking: false,
   });
+  
+  // processFrame内で最新の値を参照するためのRef
+  const pointerPositionRef = useRef<PointerPosition>({
+    x: 0,
+    y: 0,
+    confidence: 0,
+    isTracking: false,
+  });
 
   const [gestureState, setGestureState] = useState<GestureState>({
     direction: 'none',
@@ -39,11 +47,19 @@ export function useNosePointer() {
   const [error, setError] = useState<string | null>(null);
   const [debugInfo, setDebugInfo] = useState<Record<string, string>>({});
   const [sensitivity, setSensitivity] = useState(2.0);
+  
+  // processFrame内で最新の値を参照するためのRef
+  const sensitivityRef = useRef(2.0);
 
   // 前フレームの鼻位置を追跡（ジェスチャ検出用）
   const prevNosePosRef = useRef<{ x: number; y: number } | null>(null);
   const gestureStartTimeRef = useRef<number | null>(null);
   const gestureStartPosRef = useRef<{ x: number; y: number } | null>(null);
+
+  // sensitivityの変更をRefに反映
+  useEffect(() => {
+    sensitivityRef.current = sensitivity;
+  }, [sensitivity]);
 
   // MediaPipeの初期化
   const initializeFaceLandmarker = useCallback(async () => {
@@ -203,14 +219,12 @@ export function useNosePointer() {
 
       prevNosePosRef.current = currentPos;
     },
-    [setGestureState]
+    []
   );
 
   // フレーム処理（鼻トラッキング）
-  const processFrame = () => {
-    // 現在の状態を参照するためのRef
-    const currentPointerPosition = pointerPosition;
-    const currentDebugInfo = debugInfo;
+  // useCallbackでメモ化し、依存配列を空にすることで再生成を防ぐ
+  const processFrame = useCallback(() => {
     if (!videoRef.current || !faceLandmarkerRef.current) {
       animationFrameRef.current = requestAnimationFrame(processFrame);
       return;
@@ -219,16 +233,15 @@ export function useNosePointer() {
     // ビデオの準備状態を確認
     const readyState = videoRef.current.readyState;
     if (readyState !== videoRef.current.HAVE_ENOUGH_DATA) {
-      setDebugInfo((prev) => ({
-        ...prev,
-        videoReady: `${readyState}/4 (waiting for HAVE_ENOUGH_DATA)`,
-      }));
+      // 準備ができていない場合はログを更新せず、次のフレームを待つ
+      // 頻繁な状態更新を避けるため、ここではsetDebugInfoを呼ばない
       animationFrameRef.current = requestAnimationFrame(processFrame);
       return;
     }
 
     try {
-      setDebugInfo((prev) => ({ ...prev, videoReady: 'Ready' }));
+      // 頻繁な状態更新を避けるため、ここではsetDebugInfoを呼ばない
+      // setDebugInfo((prev) => ({ ...prev, videoReady: 'Ready' }));
 
       const results = faceLandmarkerRef.current.detectForVideo(videoRef.current, Date.now());
 
@@ -243,11 +256,12 @@ export function useNosePointer() {
           // ビデオ座標をスクリーン座標に変換
           // ユーザーの要望により、カメラが鏡表示になっているのに合わせて動きを左右反転させる
           // 感度調整を追加: 中心(0.5)からの偏差を増幅する
+          const currentSensitivity = sensitivityRef.current;
           const centeredX = 1 - noseLandmark.x - 0.5;
           const centeredY = noseLandmark.y - 0.5;
 
-          const rawScreenX = (centeredX * sensitivity + 0.5) * screenWidth;
-          const rawScreenY = (centeredY * sensitivity + 0.5) * screenHeight;
+          const rawScreenX = (centeredX * currentSensitivity + 0.5) * screenWidth;
+          const rawScreenY = (centeredY * currentSensitivity + 0.5) * screenHeight;
 
           // スムージング処理 (Exponential Moving Average)
           // アルファ値: 小さいほど滑らかだが遅延が増える (0.1 ~ 0.5 推奨)
@@ -256,29 +270,38 @@ export function useNosePointer() {
           let smoothedX = rawScreenX;
           let smoothedY = rawScreenY;
 
-          if (pointerPosition.isTracking) {
-            smoothedX = alpha * rawScreenX + (1 - alpha) * pointerPosition.x;
-            smoothedY = alpha * rawScreenY + (1 - alpha) * pointerPosition.y;
+          // Refから現在の位置を取得
+          const currentPos = pointerPositionRef.current;
+          if (currentPos.isTracking) {
+            smoothedX = alpha * rawScreenX + (1 - alpha) * currentPos.x;
+            smoothedY = alpha * rawScreenY + (1 - alpha) * currentPos.y;
           }
 
           // 信頼度は検出できた時点で1.0とする（Z座標は深度なので信頼度ではない）
           const confidence = 1.0;
 
-          setPointerPosition({
+          const newPos = {
             x: smoothedX,
             y: smoothedY,
             confidence,
             isTracking: true,
-          });
+          };
+
+          // RefとStateの両方を更新
+          pointerPositionRef.current = newPos;
+          setPointerPosition(newPos);
 
           // ジェスチャ検出
           detectGesture({ x: smoothedX, y: smoothedY }, screenHeight);
         }
       } else {
-        setPointerPosition((prev) => ({ ...prev, isTracking: false }));
+        const newPos = { ...pointerPositionRef.current, isTracking: false };
+        pointerPositionRef.current = newPos;
+        setPointerPosition(newPos);
       }
     } catch (err) {
       console.error('❌ Frame processing error:', err);
+      // エラー時のみ状態更新
       setDebugInfo((prev) => ({
         ...prev,
         error: err instanceof Error ? err.message : 'Unknown error',
@@ -286,7 +309,7 @@ export function useNosePointer() {
     }
 
     animationFrameRef.current = requestAnimationFrame(processFrame);
-  };
+  }, [detectGesture]); // detectGestureはuseCallbackでメモ化されているので安全
 
   // 初期化と開始
   useEffect(() => {
@@ -314,7 +337,7 @@ export function useNosePointer() {
         stream.getTracks().forEach((track) => track.stop());
       }
     };
-  }, []);
+  }, []); // 空の依存配列で一度だけ実行
 
   // フレーム処理の開始
   useEffect(() => {
@@ -322,18 +345,15 @@ export function useNosePointer() {
     
     console.log('▶️ Starting frame processing');
     
-    const startProcessing = () => {
-      animationFrameRef.current = requestAnimationFrame(processFrame);
-    };
-    
-    startProcessing();
+    // processFrameを開始
+    animationFrameRef.current = requestAnimationFrame(processFrame);
 
     return () => {
       if (animationFrameRef.current) {
         cancelAnimationFrame(animationFrameRef.current);
       }
     };
-  }, [isInitialized]);
+  }, [isInitialized, processFrame]); // processFrameはメモ化されているので安全
 
   // ジェスチャのリセット
   const resetGesture = useCallback(() => {
