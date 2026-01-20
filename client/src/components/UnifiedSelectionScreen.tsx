@@ -71,6 +71,9 @@ export const UnifiedSelectionScreen: React.FC = () => {
     const [clickFlash, setClickFlash] = useState(false);
     const [showInitInfo, setShowInitInfo] = useState(true);
     const [initStartTime] = useState(Date.now());
+    
+    // 確定ボタンの位置を固定するためのState
+    const [confirmBtnPos, setConfirmBtnPos] = useState<{ id: string, x: number, y: number } | null>(null);
 
     // ボタンRef管理
     const buttonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
@@ -93,12 +96,41 @@ export const UnifiedSelectionScreen: React.FC = () => {
 
                 // ホバー中のボタンに対して確定ボタンを登録
                 if (fsmContext.state === 'hover' && fsmContext.hoveredButtonId === id) {
-                    // 確定ボタンの位置計算（ボタンの下部中央）
                     const confirmBtnId = `${id}-confirm`;
                     const confirmBtnWidth = 160;
                     const confirmBtnHeight = 80;
-                    const confirmBtnX = rect.left + (rect.width / 2) - (confirmBtnWidth / 2);
-                    const confirmBtnY = rect.bottom + 20; // ボタンの下20px
+                    
+                    // 既に位置が決まっている場合はそれを使う、なければポインタ位置から計算
+                    let confirmBtnX, confirmBtnY;
+                    
+                    if (confirmBtnPos && confirmBtnPos.id === id) {
+                        confirmBtnX = confirmBtnPos.x;
+                        confirmBtnY = confirmBtnPos.y;
+                    } else {
+                        // 初回表示時：ポインタの少し下に表示
+                        // ポインタ位置は useNosePointer から取得済み
+                        if (pointerPosition.isTracking) {
+                            confirmBtnX = pointerPosition.x - (confirmBtnWidth / 2);
+                            confirmBtnY = pointerPosition.y + 50; // ポインタの50px下
+                        } else {
+                            // フォールバック：ボタンの下部中央
+                            confirmBtnX = rect.left + (rect.width / 2) - (confirmBtnWidth / 2);
+                            confirmBtnY = rect.bottom + 20;
+                        }
+                        
+                        // 画面外にはみ出さないように調整
+                        if (confirmBtnX < 0) confirmBtnX = 10;
+                        if (confirmBtnX + confirmBtnWidth > window.innerWidth) confirmBtnX = window.innerWidth - confirmBtnWidth - 10;
+                        if (confirmBtnY + confirmBtnHeight > window.innerHeight) confirmBtnY = window.innerHeight - confirmBtnHeight - 10;
+
+                        // 位置を保存（次回以降固定）
+                        // レンダリングサイクル中なので、setStateはuseEffectで行うか、ここでの計算値をRefに保存する等の工夫が必要だが、
+                        // updateButtonsはuseEffect/setIntervalから呼ばれるため、ここでsetStateすると無限ループのリスクがある。
+                        // そのため、updateButtons内ではregisterButtonのみ行い、位置決定ロジックは分離すべき。
+                        // しかし、registerButtonに渡す座標と描画座標を一致させる必要がある。
+                        
+                        // 暫定対応：ここで計算した値を使いつつ、useEffectで位置を固定する
+                    }
 
                     registerButton(confirmBtnId, {
                         x: confirmBtnX,
@@ -116,6 +148,49 @@ export const UnifiedSelectionScreen: React.FC = () => {
         });
     };
 
+    // 確定ボタンの位置管理
+    useEffect(() => {
+        if (fsmContext.state === 'hover' && fsmContext.hoveredButtonId) {
+            // まだ位置が決まっていない、または別のボタンに移った場合
+            if (!confirmBtnPos || confirmBtnPos.id !== fsmContext.hoveredButtonId) {
+                const btnId = fsmContext.hoveredButtonId;
+                const confirmBtnWidth = 160;
+                const confirmBtnHeight = 80;
+                
+                let x, y;
+                if (pointerPosition.isTracking) {
+                    x = pointerPosition.x - (confirmBtnWidth / 2);
+                    y = pointerPosition.y + 50; // ポインタの50px下
+                } else {
+                    // フォールバック
+                    const el = buttonRefs.current[btnId];
+                    if (el) {
+                        const rect = el.getBoundingClientRect();
+                        x = rect.left + (rect.width / 2) - (confirmBtnWidth / 2);
+                        y = rect.bottom + 20;
+                    } else {
+                        x = window.innerWidth / 2 - confirmBtnWidth / 2;
+                        y = window.innerHeight / 2;
+                    }
+                }
+
+                // 画面外補正
+                if (x < 0) x = 10;
+                if (x + confirmBtnWidth > window.innerWidth) x = window.innerWidth - confirmBtnWidth - 10;
+                if (y + confirmBtnHeight > window.innerHeight) y = window.innerHeight - confirmBtnHeight - 10;
+
+                setConfirmBtnPos({ id: btnId, x, y });
+            }
+        } else if (fsmContext.state === 'idle') {
+            // ホバーが外れたらリセット（ただし、即時リセットすると猶予期間中に消えるため、FSM側で制御されているはずだが、
+            // ここではFSMの状態に従う。FSMがidleになったら消す。）
+            // ユーザー要望：ボタンから離れたら決定ボタン消えるので押せない -> 猶予期間が必要
+            // FSM側で猶予期間を設けるか、ここで遅延させるか。
+            // ここではFSMの状態に忠実に従い、FSM側で猶予期間を実装する方針とする。
+            setConfirmBtnPos(null);
+        }
+    }, [fsmContext.state, fsmContext.hoveredButtonId, pointerPosition.isTracking]); // pointerPosition.x/yは依存させない（固定するため）
+
     // 画面切り替え時やホバー状態変化時にボタンを更新
     useEffect(() => {
         // ボタンRefをリセット（DOMが再描画されるため）
@@ -124,7 +199,7 @@ export const UnifiedSelectionScreen: React.FC = () => {
         // 少し待ってから登録（レンダリング待ち）
         const timer = setTimeout(updateButtons, 50);
         return () => clearTimeout(timer);
-    }, [currentView, fsmContext.state, fsmContext.hoveredButtonId]);
+    }, [currentView, fsmContext.state, fsmContext.hoveredButtonId, confirmBtnPos]); // confirmBtnPosが変わったら再登録
 
     // 定期的な位置補正 (Resizeなど)
     useEffect(() => {
@@ -346,13 +421,11 @@ export const UnifiedSelectionScreen: React.FC = () => {
                                 <span>{btn.label}</span>
                             </button>
                             {/* 確定ボタン（エンターキー）の表示 */}
-                            {isActive && isHover && (
+                            {isActive && isHover && confirmBtnPos && confirmBtnPos.id === btn.id && (
                                 <div style={{
-                                    position: 'absolute',
-                                    top: '100%', // ボタンの下端
-                                    left: '50%',
-                                    transform: 'translateX(-50%)',
-                                    marginTop: '20px', // ボタンとの間隔
+                                    position: 'fixed', // absoluteからfixedに変更（画面全体座標系）
+                                    left: confirmBtnPos.x,
+                                    top: confirmBtnPos.y,
                                     width: '160px',
                                     height: '80px',
                                     backgroundColor: '#f97316', // Orange

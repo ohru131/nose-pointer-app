@@ -132,27 +132,51 @@ export function usePointerFSM() {
             // ホバー終了時間を記録
             lastHoveredRef.current = { id: prev.activeButtonId, time: Date.now() };
           }
-          // ホバーから外れたが、確定ボタンへの移動を考慮して少し待つロジックが必要かもしれないが、
-          // 今回は確定ボタンがボタンのすぐ下にあるため、移動中に一瞬idleになっても
-          // すぐに確定ボタンの判定に入れば問題ない。
-          // ただし、確定ボタン表示中に親ボタンから外れた場合、確定ボタンも消えてしまう可能性がある。
-          // UnifiedSelectionScreen側で、hoveredButtonIdに基づいて確定ボタンを表示しているため、
-          // ここでhoveredButtonIdを即座に消すと確定ボタンも消える。
+          // ホバーから外れた場合の処理（Grace Periodの実装）
+          // 確定ボタンが表示されている場合、親ボタンから外れても少しの間はhoveredButtonIdを維持する
           
-          // 対策: 親ボタンから外れても、少しの間（グレース期間）はhoveredButtonIdを維持する？
-          // または、確定ボタンの登録ロジックを見直す。
+          // 既に猶予期間中なら何もしない（タイマーはuseEffectで管理するか、ここでセットするか）
+          // ここではシンプルに、stateはidleにするが、hoveredButtonIdは即座に消さないアプローチを試みる。
+          // しかし、stateがidleになるとUnifiedSelectionScreen側で確定ボタンが消える実装になっている。
+          // したがって、stateを'hover'のまま維持しつつ、activeButtonIdだけnullにするのが良いかもしれない。
+          // あるいは、新しいstate 'grace' を導入する。
           
-          // 今回はシンプルに、activeButtonIdはnullにするが、hoveredButtonIdは維持するアプローチをとる。
-          // ただし、完全に外れた場合はhoveredButtonIdも消す必要がある。
+          // 今回は state: 'hover' を維持し、activeButtonIdをnullにする。
+          // そして、一定時間後に本当に何もなければidleにするタイマーをセットする。
           
+          if (prev.state === 'hover' && prev.hoveredButtonId) {
+             // 猶予タイマーを開始（既存のhoverTimerRefを再利用または新規作成）
+             if (hoverTimerRef.current) clearTimeout(hoverTimerRef.current);
+             
+             hoverTimerRef.current = setTimeout(() => {
+                 setFsmContext(current => {
+                     // まだボタン外ならリセット
+                     if (current.activeButtonId === null) {
+                         return {
+                             ...current,
+                             state: 'idle',
+                             hoveredButtonId: null,
+                             hoverStartTime: null,
+                             confirmedButtonId: null
+                         };
+                     }
+                     return current;
+                 });
+             }, 1000); // 1秒の猶予
+             
+             return {
+                 ...prev,
+                 activeButtonId: null, // ボタン上ではない
+                 // state: 'hover', // stateはhoverのまま（確定ボタンを表示し続けるため）
+                 // hoveredButtonId: prev.hoveredButtonId // 維持
+             };
+          }
+
           return {
             ...prev,
             state: 'idle',
             activeButtonId: null,
-            // hoveredButtonId: null, // ここを消すと確定ボタンが消えるので、維持するか検討が必要
-            // しかし、別のボタンに移った場合は更新される。
-            // 何もないところに移動した場合のみ問題。
-            hoveredButtonId: null, // 一旦消す（UI側でチラつき防止が必要なら別途対応）
+            hoveredButtonId: null,
             hoverStartTime: null,
           };
         });
