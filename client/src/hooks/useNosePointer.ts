@@ -213,10 +213,10 @@ export function useNosePointer() {
       if (deltaY > 5 && totalDeltaY > screenHeight * 0.05) {
         direction = 'down';
       }
-      // 上方向ジェスチャ（キャンセル操作）：上方向に一定距離移動
-      else if (deltaY < -5 && totalDeltaY < -screenHeight * 0.05) {
-        direction = 'up';
-      }
+      // 上方向ジェスチャ（キャンセル操作）：誤動作防止のため無効化
+      // else if (deltaY < -5 && totalDeltaY < -screenHeight * 0.05) {
+      //   direction = 'up';
+      // }
 
       // 状態更新の抑制：方向が変わった時のみ更新する
       // 無限ループ防止のため、方向が同じ場合は更新しない

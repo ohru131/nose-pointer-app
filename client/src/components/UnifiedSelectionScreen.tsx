@@ -128,12 +128,8 @@ export const UnifiedSelectionScreen: React.FC = () => {
         if (gestureState.direction !== 'none') {
             handleGesture(gestureState.direction, gestureState.distance);
 
-            // 下ジェスチャ処理はFSM内で処理されるが、
-            // 上ジェスチャで戻る（ホーム以外）はここで処理
-            if (gestureState.direction === 'up' && currentView !== 'home') {
-                setCurrentView('home');
-            }
-
+            // 下ジェスチャ処理はFSM内で処理される
+            // 上ジェスチャで戻る機能は誤動作防止のため削除
             // resetGestureはuseNosePointer側で自然にリセットされるのを待つため削除
         }
     }, [gestureState, handleGesture, currentView]);
