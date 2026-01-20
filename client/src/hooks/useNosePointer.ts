@@ -323,16 +323,27 @@ export function useNosePointer() {
           };
 
           // RefとStateの両方を更新
+          // 無限ループ防止：位置の変化が小さい場合はState更新をスキップ
+          const prevPos = pointerPositionRef.current;
+          const dist = Math.sqrt(Math.pow(newPos.x - prevPos.x, 2) + Math.pow(newPos.y - prevPos.y, 2));
+          
           pointerPositionRef.current = newPos;
-          setPointerPosition(newPos);
+          
+          // 0.5ピクセル以上の移動、またはトラッキング状態の変化があった場合のみ更新
+          if (dist > 0.5 || prevPos.isTracking !== newPos.isTracking) {
+            setPointerPosition(newPos);
+          }
 
           // ジェスチャ検出
           detectGesture({ x: smoothedX, y: smoothedY }, screenHeight);
         }
       } else {
-        const newPos = { ...pointerPositionRef.current, isTracking: false };
-        pointerPositionRef.current = newPos;
-        setPointerPosition(newPos);
+        const prevPos = pointerPositionRef.current;
+        if (prevPos.isTracking) {
+            const newPos = { ...prevPos, isTracking: false };
+            pointerPositionRef.current = newPos;
+            setPointerPosition(newPos);
+        }
       }
     } catch (err) {
       console.error('❌ Frame processing error:', err);

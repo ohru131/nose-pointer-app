@@ -115,7 +115,7 @@ export default function CameraOverlay({
 
   return (
     <div
-      style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 10 }}
+      style={{ position: 'fixed', inset: 0, pointerEvents: 'none', zIndex: 9999 }}
     >
       {/* フルスクリーンカメラオーバーレイ */}
       <canvas
